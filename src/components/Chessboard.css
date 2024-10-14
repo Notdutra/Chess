@@ -1,0 +1,33 @@
+.chessboard {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr); /* Create 8 equal columns */
+  grid-template-rows: repeat(8, 1fr); /* Create 8 equal rows */
+  width: 720px; /* Set width to accommodate the squares */
+  height: 720px; /* Set height to accommodate the squares */
+  user-select: none; /* Disable text selection */
+  -webkit-user-select: none; /* Safari */
+  -moz-user-select: none; /* Firefox */
+  -ms-user-select: none; /* Internet Explorer/Edge */
+  user-select: none; /* Standard syntax */
+}
+
+.chessboard * {
+  user-select: none; /* Disable text selection for all elements within the chessboard */
+  -webkit-user-select: none; /* Safari */
+  -moz-user-select: none; /* Firefox */
+  -ms-user-select: none; /* Internet Explorer/Edge */
+}
+
+.chessboard img {
+  pointer-events: none; /* Prevent image dragging */
+}
+
+/* Disable context menu on right-click */
+.chessboard {
+  -webkit-touch-callout: none; /* iOS Safari */
+  -webkit-user-select: none; /* Safari */
+  -khtml-user-select: none; /* Konqueror HTML */
+  -moz-user-select: none; /* Firefox */
+  -ms-user-select: none; /* Internet Explorer/Edge */
+  user-select: none; /* Non-prefixed version, currently supported by Chrome, Edge, Opera and Firefox */
+}

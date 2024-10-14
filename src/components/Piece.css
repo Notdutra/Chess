@@ -1,0 +1,9 @@
+.piece {
+  width: 90px; /* Match this to your square size */
+  height: 90px; /* Match this to your square size */
+}
+
+.piece img {
+  width: 100%;
+  height: 100%;
+}
