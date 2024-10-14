@@ -1,0 +1,8 @@
+.piece {
+  width: 90px; /* Match this to your square size */
+  height: 90px; /* Match this to your square size */
+  background-size: cover; /* Ensure the background image covers the entire div */
+  background-position: center; /* Center the background image */
+  background-repeat: no-repeat; /* Prevent the background image from repeating */
+  cursor: grab; /* Change the cursor to a grabbing hand */
+}
