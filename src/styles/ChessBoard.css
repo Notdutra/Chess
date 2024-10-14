@@ -1,0 +1,14 @@
+/* Board.css */
+.board {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr); /* 8 equal columns */
+  grid-template-rows: repeat(8, 1fr); /* 8 equal rows */
+  width: 100%;
+  max-width: 100%;
+  aspect-ratio: 1; /* Maintain square shape */
+  margin: 0 auto; /* Center the board */
+}
+
+.board-row {
+  display: contents; /* Makes each row's squares go directly into the grid */
+}

@@ -1,0 +1,16 @@
+/* Square.css */
+.square {
+  width: 85px; /* Take up the full width of the grid cell */
+  height: 85px; /* Maintain square aspect ratio */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.dark {
+  background-color: rgb(115, 149, 82); /* Dark square color */
+}
+
+.light {
+  background-color: rgb(235, 236, 208); /* Light square color */
+}
