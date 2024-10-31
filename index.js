@@ -13,8 +13,8 @@ currentPlayer.innerHTML = 'White';
 
 const piece = document.querySelectorAll('.piece');
 
-chessboard.addEventListener('contextmenu', event => event.preventDefault());
 // disabling context menu so right clicking on square isnt weird
+chessboard.addEventListener('contextmenu', event => event.preventDefault());
 
 
 // BOARD SECTION START
@@ -91,6 +91,12 @@ let selectedPieceDiv = null;
 let selectedPieceLegalMoves = [];
 let highlighedSquares = [];
 
+let whiteKingInCheck = false;
+let blackKingInCheck = false;
+
+let piecesAttackingWhiteKing = [];
+let piecesAttackingBlackKing = [];
+
 square.forEach(selectedSquare => {
     selectedSquare.addEventListener('click', () => {
         handlePieceEvent(selectedSquare);
@@ -112,9 +118,22 @@ function handlePieceEvent(clickedSquareElement) {
     if (clickedPieceDiv && checkPlayerTurn(clickedPieceDiv)) { // if clicked piece is a piece and it is the current player's turn select it
         selectPieceHandler(clickedPieceDiv);
         if (selectedPieceDiv) {// if there is a selected piece
-            selectedPieceLegalMoves = getPieceMoveSetFromSquareElement(selectedPieceDiv); // get legal moves for selected piece
-            showLegalMovesSquares(); // highlight legal moves for selected piece
-            highlightSquare(clickedSquareElement); // highlight selected piece square 
+            if (kingInCheck()) {
+                console.log('King is in check, make a move that gets it out of check');
+
+                let allPossibleMoves = getAllPiecesMovementsOfColor(currentPlayer.innerHTML);
+                protectKingMoves(allPossibleMoves);
+            } else {
+                let isBlocked = isPieceBlockedOnSquare(clickedSquareElement.id);
+                if (!isBlocked) {
+                    selectedPieceLegalMoves = getPieceMoveSetFromSquareElement(selectedPieceDiv); // get legal moves for selected piece
+                    showLegalMovesSquares(); // highlight legal moves for selected piece
+                    highlightSquare(clickedSquareElement); // highlight selected piece square 
+                } else {
+
+                }
+
+            }
         }
     } else {
         // if clicked on a square and there is a selected piece, go to move piece handler to see if it is a legal move
@@ -186,8 +205,10 @@ function movePieceHandler(clickedSquareElement) {
 
 function playerTurnChange() {
     if (currentPlayer.innerHTML === 'White') {
+        if (kingInCheck()) { console.log('Black in Check'); }
         currentPlayer.innerHTML = 'Black'
     } else {
+        if (kingInCheck()) { console.log('White in Check'); }
         currentPlayer.innerHTML = 'White';
     }
 }
@@ -272,7 +293,6 @@ const directionNumberBy = (direction, num) => squareNumber + direction * num; //
 const directionLetterBy = (direction, num) => boardLetters[boardLetters.indexOf(squareLetter) + direction * num]; // 1 for right, -1 for left
 
 function getPieceMoveSetFromSquareElement(squareElement) {
-
     const aPieceId = squareElement.id;
     const aPieceName = getPieceNameFromId(aPieceId);
     const aPieceSquare = squareElement.parentElement.id;
@@ -343,9 +363,7 @@ function pawnMoves(aPieceSquare, aPieceColor) {
             moves.push(diagonal);
         }
     });
-
     return moves;
-
 }
 
 function rookMoves(aPieceSquare, aPieceColor) {
@@ -498,11 +516,17 @@ function addMoveOrCapture(square, moves, aPieceColor) {
     }
 }
 
-// Helper Function that gets all same color Pieces and their respective squares in the board 
+// Helper Function that gets all Pieces and their respective squares in the board 
 
-function getAllPieceDivsOfColor(aPieceColor) {
+function getAllPieceDivs() {
     let pieces = [];
-    square.forEach(square => square.firstChild?.id.includes(aPieceColor) ? pieces.push(square.firstChild) : null);
+    square.forEach(square => square.firstChild ? pieces.push(square.firstChild) : null);
+    return pieces;
+}
+
+function getAllPieceDivsOfColor(color) {
+    let pieces = [];
+    square.forEach(square => square.firstChild && square.firstChild.id.includes(color) ? pieces.push(square.firstChild) : null);
     return pieces;
 }
 
@@ -518,25 +542,69 @@ function getArrayOfPieceAndMoves(aPieceDiv) {
 // Helper function to check if a piece can capture
 function possibleCaptureWithPieceId(aPieceId) {
     const piece = document.getElementById(aPieceId);
-    let moves = getPieceMoveSetFromSquareElement(piece);
+    const moves = getPieceMoveSetFromSquareElement(piece)
+        .filter(square => square.firstChild); // Filter only squares with a piece on them
 
-    return moves.filter(square => square.firstChild)
+    moves.forEach(square => {
+        const attackedPieceId = square.firstChild.id;
+        if (getPieceNameFromId(attackedPieceId) === 'King') {
+            const attackedColor = getPieceColorFromId(attackedPieceId);
+            const attackingMove = { piece, attackedPieceId };
+            if (attackedColor === 'White') {
+                whiteKingInCheck = true;
+                piecesAttackingWhiteKing.push(attackingMove);
+            } else if (attackedColor === 'Black') {
+                blackKingInCheck = true;
+                piecesAttackingBlackKing.push(attackingMove);
+            }
+        }
+    });
+
+    return moves;
 }
 
-// Helper function to get all color pieces movements
-function getAllColorPiecesMovements(color) {
+// Helper function to get all pieces movements
+function getAllPiecesMovements() {
+    const result = getAllPieceDivs()
+        .map(piece => {
+            const moves = getPieceMoveSetFromSquareElement(piece);
+            return moves.length > 0 ? { piece, moves } : null;
+        })
+        .filter(moves => moves !== null);
+
+    return result;
+}
+
+// Helper function to get all pieces movements of a specific color
+function getAllPiecesMovementsOfColor(color) {
     const result = getAllPieceDivsOfColor(color)
         .map(piece => {
             const moves = getPieceMoveSetFromSquareElement(piece);
             return moves.length > 0 ? { piece, moves } : null;
         })
-        .filter(moves, moves !== null);
+        .filter(moves => moves !== null);
 
     return result;
 }
 
-// Helper function to get all color pieces captures
-function getAllColorPiecesCaptures(color) {
+// Helper function to get all pieces captures
+function getAllPiecesCaptures() {
+    const result = getAllPieceDivs()
+        .map(piece => {
+            const captures = possibleCaptureWithPieceId(piece.id);
+            return captures.length > 0 ? { piece, captures } : null;
+        })
+        .filter(capture => capture !== null);  // Keep only entries with captures
+
+    return result;
+}
+
+function getPieceDivFromPieceId(pieceId) {
+    return document.getElementById(pieceId);
+}
+
+// Helper function to get all pieces captures of a specific color
+function getAllPiecesCapturesOfColor(color) {
     const result = getAllPieceDivsOfColor(color)
         .map(piece => {
             const captures = possibleCaptureWithPieceId(piece.id);
@@ -549,7 +617,21 @@ function getAllColorPiecesCaptures(color) {
 
 // Helper function to get all threatened pieces
 function allThreatenedPieces() {
-    let possibleCaptures = getAllColorPiecesCaptures(currentPlayer.innerHTML);
+    let possibleCaptures = getAllPiecesCaptures();
+    let threatenedPieces = [];
+
+    possibleCaptures.forEach(capture => {
+        capture.captures.forEach(square => {
+            threatenedPieces.push(square.firstChild);
+        });
+    });
+
+    return threatenedPieces;
+}
+
+// Helper function to get all threatened pieces of a specific color
+function allThreatenedPiecesOfColor(color) {
+    let possibleCaptures = getAllPiecesCapturesOfColor(color);
     let threatenedPieces = [];
 
     possibleCaptures.forEach(capture => {
@@ -562,28 +644,147 @@ function allThreatenedPieces() {
 }
 
 function kingInCheck() {
-    let threatenedPieces = allThreatenedPieces();
+    if (whiteKingInCheck || blackKingInCheck) { return true; }
+    let color = currentPlayer.innerHTML;
+    let threatenedPieces = allThreatenedPiecesOfColor(color);
 
     threatenedPieces.forEach(piece => {
-        if (piece.id.includes('King')) {
-            alert('King in Check');
-            return true;
-        }
+        const pieceId = piece.id;
+        return pieceId.includes('King') ? color === 'White' ? whiteKingInCheck = true : blackKingInCheck = true : null;
     });
-    return false;
+
+    return whiteKingInCheck || blackKingInCheck;
+}
+
+// Helper function that filters all possible moves to only include ones that protect the king and get it out of check
+function protectKingMoves(possibleMoves) {
+    let protectingMoves = [];
+
+    // moves : either block the piece that is attacking the king or capture it
+    // capture it without putting the king in check
+    // block it without putting the king in check
+    // if piece is knight or pawn, capture it
+    // if piece is rook, bishop, queen, block it
+    // if piece is king, move it
+    // if there is space between the attacking line then a piece can be put in between
+
+
+    let piecesAttackingKing = currentPlayer === 'White' ? piecesAttackingWhiteKing : piecesAttackingBlackKing;
+    let pieceMoves = [];
+
+    possibleMoves.forEach(entry => {
+        let piece = entry.piece;
+        entry.moves.forEach(move => {
+            pieceMoves.push({ piece: piece, move });
+        });
+    })
+
+    console.log(pieceMoves);
+
+
+    // console.log(possibleMoves);
+}
+
+// Helper function to simulate a move puting a piece on a square, regardless of legality or if there is a piece there, used for checking if a king is still in check after a move
+function simulateMove(aPieceId, onSquareId) {
+    let currentBoard = boardToSimpleNotation();
+
+    for (let row = 0; row < currentBoard.length; row++) {
+        for (let column = 0; column < currentBoard[row].length; column++) {
+            currentItem = currentBoard[row][column];
+            currentItemPieceId = currentItem.pieceId;
+            currentItemSquareId = currentItem.squareId;
+            if (currentItemPieceId === aPieceId) { currentBoard[row][column] = { pieceId: 'empty', squareId: currentItemSquareId } }
+            if (currentItemSquareId === onSquareId) { currentBoard[row][column] = { pieceId: aPieceId, squareId: currentItemSquareId } }
+        }
+    }
+
+    let simpleBoardAgain = currentBoard.map(item => item.map(item => item.pieceId));
+    let isSafe = isKingCheckedOnThisBoard(simpleBoardAgain);
 
 }
+
+// Helper function to test the isKingCheckedOnThisBoard function
+function isKingCheckedOnThisBoard() {
+    let isInCheck = false;
+    let board = boardToSimpleNotation();
+    let allCaptures = getAllPieceCapturesFromBoard(board);
+    if (allCaptures.length > 0) {
+        allCaptures.forEach(capture => {
+            let pieceId = capture.piece.id;
+            let captureMovesArray = capture.moves;
+            captureMovesArray.forEach(attack => { attack.firstChild.id.includes('King') && (isInCheck = true); })
+        });
+    }
+
+    return isInCheck;
+}
+
+// Helper function to get all pieces movements from the board
+function getAllPieceMovesFromBoard(board) {
+    const allMoves = [];
+    board.forEach(row => {
+        row.forEach(obj => {
+            if (obj.pieceId !== '') {
+                const piece = getPieceDivFromPieceId(obj.pieceId);
+                let movesSet = getPieceMoveSetFromSquareElement(piece);
+                movesSet.length > 0 && allMoves.push({ piece, moves: movesSet });
+            }
+        });
+    });
+
+    return allMoves;
+}
+
+// Helper function to get all pieces captures from the board
+function getAllPieceCapturesFromBoard(board) {
+    let allMoves = [];
+    board.forEach(row => {
+        row.forEach(obj => {
+            if (obj.pieceId !== '') {
+                const pieceiD = obj.pieceId;
+                const piece = getPieceDivFromPieceId(pieceiD);
+                const moves = possibleCaptureWithPieceId(pieceiD);
+                moves.length > 0 && allMoves.push({ piece, moves });
+            }
+        });
+    });
+    return allMoves;
+}
+
+
 
 // Helper function to check if a piece is pinned
 function isPieceBlockedOnSquare(aSquareId) {
     let squarePiece = getSquareDivFromId(aSquareId).firstChild;
     const result = getArrayOfPieceAndMoves(squarePiece);
-    return result[1] ? ('Not blocked') : 'Blocked';
+    return result[1] ? false : true;
 }
 
 // Helper function to get a square div from its id
 function getSquareDivFromId(aSquareId) {
     return document.getElementById(aSquareId);
+}
+
+function boardToSimpleNotation() {
+    let boardAsList = [];
+    square.forEach(square => {
+        let piece = square.firstChild;
+        if (piece) {
+            let pieceId = piece.id;
+            let squareId = square.id;
+            boardAsList.push({ pieceId, squareId });
+        } else {
+            boardAsList.push({ pieceId: '', squareId: square.id });
+        }
+    });
+
+    let board = [];
+    for (let i = 0; i < 64; i += 8) {
+        board.push(boardAsList.slice(i, i + 8));
+    }
+
+    return board;
 }
 
 
