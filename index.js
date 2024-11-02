@@ -117,22 +117,14 @@ function handlePieceEvent(clickedSquareElement) {
 
     if (clickedPieceDiv && checkPlayerTurn(clickedPieceDiv)) { // if clicked piece is a piece and it is the current player's turn select it
         selectPieceHandler(clickedPieceDiv);
-        if (selectedPieceDiv) {// if there is a selected piece
+        if (selectedPieceDiv) {// if there is a selected piece 
             if (kingInCheck()) {
                 console.log('King is in check, make a move that gets it out of check');
-
                 let allPossibleMoves = getAllPiecesMovementsOfColor(currentPlayer.innerHTML);
-                protectKingMoves(allPossibleMoves);
             } else {
-                let isBlocked = isPieceBlockedOnSquare(clickedSquareElement.id);
-                if (!isBlocked) {
-                    selectedPieceLegalMoves = getPieceMoveSetFromSquareElement(selectedPieceDiv); // get legal moves for selected piece
-                    showLegalMovesSquares(); // highlight legal moves for selected piece
-                    highlightSquare(clickedSquareElement); // highlight selected piece square 
-                } else {
-
-                }
-
+                selectedPieceLegalMoves = getPieceMoveSetFromSquareElement(selectedPieceDiv); // get legal moves for selected piece
+                showLegalMovesSquares(); // highlight legal moves for selected piece
+                highlightSquare(clickedSquareElement); // highlight selected piece square 
             }
         }
     } else {
@@ -189,6 +181,8 @@ function movePieceHandler(clickedSquareElement) {
                 // free to move selected piece to clicked square if legal
                 clickedSquareElement.append(selectedPieceDiv);
             }
+
+            // calculate current threats
             selectedPieceDiv = null;
             playerTurnChange(); // this has to be turned back on when the game is fully functional
         } else {
@@ -320,6 +314,7 @@ function getPieceMoveSetFromSquareElement(squareElement) {
             break;
     }
 
+    let safeMove = moves.map(move => isMoveSafe(aPieceId, move.id));
     return moves;
 }
 
@@ -516,27 +511,10 @@ function addMoveOrCapture(square, moves, aPieceColor) {
     }
 }
 
-// Helper Function that gets all Pieces and their respective squares in the board 
-
-function getAllPieceDivs() {
-    let pieces = [];
-    square.forEach(square => square.firstChild ? pieces.push(square.firstChild) : null);
-    return pieces;
-}
-
 function getAllPieceDivsOfColor(color) {
     let pieces = [];
     square.forEach(square => square.firstChild && square.firstChild.id.includes(color) ? pieces.push(square.firstChild) : null);
     return pieces;
-}
-
-// Helper function to get an array of a piece and its legal moves
-function getArrayOfPieceAndMoves(aPieceDiv) {
-    if (!aPieceDiv) return null;
-
-    let moves = getPieceMoveSetFromSquareElement(aPieceDiv);
-
-    return moves.length === 0 ? [aPieceDiv, null] : [aPieceDiv, moves];
 }
 
 // Helper function to check if a piece can capture
@@ -563,18 +541,6 @@ function possibleCaptureWithPieceId(aPieceId) {
     return moves;
 }
 
-// Helper function to get all pieces movements
-function getAllPiecesMovements() {
-    const result = getAllPieceDivs()
-        .map(piece => {
-            const moves = getPieceMoveSetFromSquareElement(piece);
-            return moves.length > 0 ? { piece, moves } : null;
-        })
-        .filter(moves => moves !== null);
-
-    return result;
-}
-
 // Helper function to get all pieces movements of a specific color
 function getAllPiecesMovementsOfColor(color) {
     const result = getAllPieceDivsOfColor(color)
@@ -587,22 +553,6 @@ function getAllPiecesMovementsOfColor(color) {
     return result;
 }
 
-// Helper function to get all pieces captures
-function getAllPiecesCaptures() {
-    const result = getAllPieceDivs()
-        .map(piece => {
-            const captures = possibleCaptureWithPieceId(piece.id);
-            return captures.length > 0 ? { piece, captures } : null;
-        })
-        .filter(capture => capture !== null);  // Keep only entries with captures
-
-    return result;
-}
-
-function getPieceDivFromPieceId(pieceId) {
-    return document.getElementById(pieceId);
-}
-
 // Helper function to get all pieces captures of a specific color
 function getAllPiecesCapturesOfColor(color) {
     const result = getAllPieceDivsOfColor(color)
@@ -613,20 +563,6 @@ function getAllPiecesCapturesOfColor(color) {
         .filter(capture => capture !== null);  // Keep only entries with captures
 
     return result;
-}
-
-// Helper function to get all threatened pieces
-function allThreatenedPieces() {
-    let possibleCaptures = getAllPiecesCaptures();
-    let threatenedPieces = [];
-
-    possibleCaptures.forEach(capture => {
-        capture.captures.forEach(square => {
-            threatenedPieces.push(square.firstChild);
-        });
-    });
-
-    return threatenedPieces;
 }
 
 // Helper function to get all threatened pieces of a specific color
@@ -643,6 +579,7 @@ function allThreatenedPiecesOfColor(color) {
     return threatenedPieces;
 }
 
+// Helper function to check if a king is in check
 function kingInCheck() {
     if (whiteKingInCheck || blackKingInCheck) { return true; }
     let color = currentPlayer.innerHTML;
@@ -656,119 +593,15 @@ function kingInCheck() {
     return whiteKingInCheck || blackKingInCheck;
 }
 
-// Helper function that filters all possible moves to only include ones that protect the king and get it out of check
-function protectKingMoves(possibleMoves) {
-    let protectingMoves = [];
-
-    // moves : either block the piece that is attacking the king or capture it
-    // capture it without putting the king in check
-    // block it without putting the king in check
-    // if piece is knight or pawn, capture it
-    // if piece is rook, bishop, queen, block it
-    // if piece is king, move it
-    // if there is space between the attacking line then a piece can be put in between
-
-
-    let piecesAttackingKing = currentPlayer === 'White' ? piecesAttackingWhiteKing : piecesAttackingBlackKing;
-    let pieceMoves = [];
-
-    possibleMoves.forEach(entry => {
-        let piece = entry.piece;
-        entry.moves.forEach(move => {
-            pieceMoves.push({ piece: piece, move });
-        });
-    })
-
-    console.log(pieceMoves);
-
-
-    // console.log(possibleMoves);
-}
-
-// Helper function to simulate a move puting a piece on a square, regardless of legality or if there is a piece there, used for checking if a king is still in check after a move
-function simulateMove(aPieceId, onSquareId) {
+function isMoveSafe(aPieceId, onSquareId) {
     let currentBoard = boardToSimpleNotation();
-
-    for (let row = 0; row < currentBoard.length; row++) {
-        for (let column = 0; column < currentBoard[row].length; column++) {
-            currentItem = currentBoard[row][column];
-            currentItemPieceId = currentItem.pieceId;
-            currentItemSquareId = currentItem.squareId;
-            if (currentItemPieceId === aPieceId) { currentBoard[row][column] = { pieceId: 'empty', squareId: currentItemSquareId } }
-            if (currentItemSquareId === onSquareId) { currentBoard[row][column] = { pieceId: aPieceId, squareId: currentItemSquareId } }
-        }
-    }
-
-    let simpleBoardAgain = currentBoard.map(item => item.map(item => item.pieceId));
-    let isSafe = isKingCheckedOnThisBoard(simpleBoardAgain);
-
 }
 
-// Helper function to test the isKingCheckedOnThisBoard function
-function isKingCheckedOnThisBoard() {
-    let isInCheck = false;
-    let board = boardToSimpleNotation();
-    let allCaptures = getAllPieceCapturesFromBoard(board);
-    if (allCaptures.length > 0) {
-        allCaptures.forEach(capture => {
-            let pieceId = capture.piece.id;
-            let captureMovesArray = capture.moves;
-            captureMovesArray.forEach(attack => { attack.firstChild.id.includes('King') && (isInCheck = true); })
-        });
-    }
-
-    return isInCheck;
-}
-
-// Helper function to get all pieces movements from the board
-function getAllPieceMovesFromBoard(board) {
-    const allMoves = [];
-    board.forEach(row => {
-        row.forEach(obj => {
-            if (obj.pieceId !== '') {
-                const piece = getPieceDivFromPieceId(obj.pieceId);
-                let movesSet = getPieceMoveSetFromSquareElement(piece);
-                movesSet.length > 0 && allMoves.push({ piece, moves: movesSet });
-            }
-        });
-    });
-
-    return allMoves;
-}
-
-// Helper function to get all pieces captures from the board
-function getAllPieceCapturesFromBoard(board) {
-    let allMoves = [];
-    board.forEach(row => {
-        row.forEach(obj => {
-            if (obj.pieceId !== '') {
-                const pieceiD = obj.pieceId;
-                const piece = getPieceDivFromPieceId(pieceiD);
-                const moves = possibleCaptureWithPieceId(pieceiD);
-                moves.length > 0 && allMoves.push({ piece, moves });
-            }
-        });
-    });
-    return allMoves;
-}
-
-
-
-// Helper function to check if a piece is pinned
-function isPieceBlockedOnSquare(aSquareId) {
-    let squarePiece = getSquareDivFromId(aSquareId).firstChild;
-    const result = getArrayOfPieceAndMoves(squarePiece);
-    return result[1] ? false : true;
-}
-
-// Helper function to get a square div from its id
-function getSquareDivFromId(aSquareId) {
-    return document.getElementById(aSquareId);
-}
-
+// Helper function to convert the board to a simple notation
 function boardToSimpleNotation() {
     let boardAsList = [];
     square.forEach(square => {
+
         let piece = square.firstChild;
         if (piece) {
             let pieceId = piece.id;
