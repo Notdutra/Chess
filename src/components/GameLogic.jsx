@@ -4,6 +4,9 @@ let squareLetter;
 let squareNumber;
 let player;
 
+var whiteKingInCheck;
+var blackKingInCheck;
+
 const directionLetterBy = (direction, num) => {
     const index = boardLetters.indexOf(squareLetter) + direction * num;
     return boardLetters[index] || null;
@@ -31,21 +34,27 @@ let possibleMoves = [];
 export function handleSquareClick(clickedSquare, gameState) {
 
     const { selectedSquare, currentPlayer, boardArray, setSelectedSquare, setBoardArray, setCurrentPlayer, setHighlightedSquares } = gameState;
-    const piece = squareHasPiece(clickedSquare);
+    const piece = squareHasPiece(clickedSquare, boardArray);
     const pieceColor = piece ? getPieceColor(piece) : null;
     player = currentPlayer;
 
     if (piece && pieceColor === currentPlayer && selectedSquare !== clickedSquare) {
         setSelectedSquare(clickedSquare);
         possibleMoves = getPossibleMoves(piece, clickedSquare, boardArray);
-        showLegalMovesSquares(possibleMoves);
+        showLegalMovesSquares(possibleMoves, boardArray);
         return;
     } else if (possibleMoves != [] && possibleMoves.includes(clickedSquare)) {
+        // let tempBoardArray = movePiece(boardArray, selectedSquare, clickedSquare);
+        // let pieceInfo = getAllPieceInfo(tempBoardArray);
+        // console.log(pieceInfo);
+
         // Update the board state here before getting captures
         const newBoardArray = movePiece(boardArray, selectedSquare, clickedSquare);
         setBoardArray(newBoardArray);
 
         // Calculate captures and moves after updating the board
+        // i actually need to check the possible moves of the clicked piece
+        // see if it puts king in check
         getAllPieceInfo(newBoardArray);
 
         setSelectedSquare(null);
@@ -277,26 +286,7 @@ function kingMoves(aPieceSquare, aPieceColor, boardArray) {
     return moves;
 }
 
-function changeCurrentPlayer(currentPlayer) {
-    return currentPlayer === 'white' ? 'black' : 'white';
-}
-
-function showLegalMovesSquares(squares) {
-    hideLegalMovesSquares();
-    squares.forEach(squareName => {
-        const square = document.getElementById(squareName);
-        if (square) {
-            const pieceElement = squareHasPiece(squareName);
-            if (pieceElement) {
-                square.classList.add('capture-hint');
-            } else {
-                square.classList.add('legal-move');
-            }
-        }
-    });
-}
-
-export function movePiece(boardArray, selectedSquare, squareName) {
+function movePiece(boardArray, selectedSquare, squareName) {
     let newBoardArray = boardArray.map(row => row.slice());
     const [startColumn, startRow] = selectedSquare.split('');
     const [endColumn, endRow] = squareName.split('');
@@ -316,55 +306,77 @@ function isBoardInCheck(boardArray) {
 }
 
 function getAllPieceInfo(boardArray) {
-    let currentPlayerInfo = [];
-    let opponentInfo = [];
-
+    const currentPlayerInfo = [];
+    const opponentInfo = [];
 
     for (let row = 0; row < 8; row++) {
         for (let col = 0; col < 8; col++) {
             const piece = boardArray[row][col];
-            const position = `${boardLetters[col]}${8 - row}`;
-
             if (piece) {
+                const position = `${boardLetters[col]}${8 - row}`;
                 const pieceColor = getPieceColor(piece);
+                const pieceInfo = createPieceInfo(piece, position, pieceColor, boardArray);
+
                 if (pieceColor === player) {
-                    const possibleMoves = getPossibleMoves(piece, position, boardArray);
-                    const moves = getOnlyMovesFromMoveListAndBoard(possibleMoves, boardArray);
-                    const captures = getCapturesFromMoveListAndBoard(pieceColor, possibleMoves, boardArray);
-                    let pieceInfo = {
-                        piece: piece,
-                        position: position,
-                        captures: captures,
-                        moves: moves
-                    };
                     currentPlayerInfo.push(pieceInfo);
-                }
-                else if (pieceColor !== player) {
-                    const possibleMoves = getPossibleMoves(piece, position, boardArray);
-                    const moves = getOnlyMovesFromMoveListAndBoard(possibleMoves, boardArray)
-                    const captures = getCapturesFromMoveListAndBoard(pieceColor, possibleMoves, boardArray);
-                    let pieceInfo = {
-                        piece: piece,
-                        position: position,
-                        captures: captures,
-                        moves: moves
-                    };
+                } else {
                     opponentInfo.push(pieceInfo);
                 }
             }
         }
     }
 
-    console.log('Current Player Info:', currentPlayerInfo);
-    console.log('Opponent Info:', opponentInfo);
+
+    const attackingPieces = new Set(currentPlayerInfo.flatMap(pieceInfo => pieceInfo.attacking ? pieceInfo.attacking.map(attackingPiece => squareHasPiece(attackingPiece, boardArray)) : []));
+    const threatenedPieces = new Set(opponentInfo.flatMap(pieceInfo => pieceInfo.attacking ? pieceInfo.attacking.map(attackingPiece => squareHasPiece(attackingPiece, boardArray)) : []));
+
+    console.log(`${player} is attacking: ${[...attackingPieces]}`);
+    console.log(`${player} pieces under attack: ${[...threatenedPieces]}`);
+
+    if (threatenedPieces.has('WK')) {
+        console.log('White King is in check, find a move to get out of check');
+    } else if (attackingPieces.has('BK')) {
+        console.log('Black King is in check');
+        blackKingInCheck = true;
+    }
+
+    if (threatenedPieces.has('BK')) {
+        console.log('Black King is in check, find a move to get out of check');
+    } else if (attackingPieces.has('WK')) {
+        console.log('White King is in check');
+        whiteKingInCheck = true;
+    }
+
+    return currentPlayerInfo;
 }
 
-function getOnlyMovesFromMoveListAndBoard(moves, boardArray) {
-    return moves.filter(square => !squareHasPieceUsingBoardArray(square, boardArray));
+function createPieceInfo(piece, position, pieceColor, boardArray) {
+    const possibleMoves = getPossibleMoves(piece, position, boardArray);
+    const moves = getMovesOnly(possibleMoves, boardArray);
+    const attacking = getCapturesOnly(pieceColor, possibleMoves, boardArray);
+
+    const pieceInfo = {
+        piece: piece,
+        position: position
+    };
+
+    if (moves.length > 0) {
+        pieceInfo.moves = moves;
+    }
+
+    if (attacking.length > 0) {
+        pieceInfo.attacking = attacking;
+    }
+
+    return pieceInfo;
 }
 
-function getCapturesFromMoveListAndBoard(color, moves, boardArray) {
-    return moves.filter(square => squareHasOpponentPieceUsingBoardArray(color, square, boardArray));
+function getMovesOnly(moves, boardArray) {
+    return moves.filter(square => !squareHasPiece(square, boardArray));
+}
+
+function getCapturesOnly(color, moves, boardArray) {
+    return moves.filter(square => squareHasOpponentPiece(color, square, boardArray));
 }
 
 function addMoveIfOpponentOrEmpty(square, piece, clickedPieceColor, moves) {
@@ -382,20 +394,7 @@ function isOpponentPiece(piece, clickedPieceColor) {
     return getPieceColor(piece) !== clickedPieceColor;
 }
 
-function hideLegalMovesSquares() {
-    const squares = document.querySelectorAll('.legal-move, .capture-hint');
-    squares.forEach(square => {
-        square.classList.remove('legal-move', 'capture-hint');
-    });
-}
-
-function squareHasPiece(squareName) {
-    const squareElement = document.getElementById(squareName);
-    const pieceElement = squareElement?.querySelector('.piece[data-piece]');
-    return pieceElement ? pieceElement.getAttribute('data-piece') : null;
-}
-
-function squareHasPieceUsingBoardArray(squareName, boardArray) {
+function squareHasPiece(squareName, boardArray) {
     const [column, row] = squareName.split('');
     const columnNumber = boardLetters.indexOf(column);
     const rowNumber = 8 - row;
@@ -405,11 +404,32 @@ function squareHasPieceUsingBoardArray(squareName, boardArray) {
     return piece ? piece : null;
 }
 
-function squareHasOpponentPieceUsingBoardArray(color, squareName, boardArray) {
-    const piece = squareHasPieceUsingBoardArray(squareName, boardArray);
+function squareHasOpponentPiece(color, squareName, boardArray) {
+    const piece = squareHasPiece(squareName, boardArray);
     return piece && getPieceColor(piece) !== color;
 }
 
+function hideLegalMovesSquares() {
+    const squares = document.querySelectorAll('.legal-move, .capture-hint');
+    squares.forEach(square => {
+        square.classList.remove('legal-move', 'capture-hint');
+    });
+}
+
+function showLegalMovesSquares(squares, boardArray) {
+    hideLegalMovesSquares();
+    squares.forEach(squareName => {
+        const square = document.getElementById(squareName);
+        if (square) {
+            const pieceElement = squareHasPiece(squareName, boardArray);
+            if (pieceElement) {
+                square.classList.add('capture-hint');
+            } else {
+                square.classList.add('legal-move');
+            }
+        }
+    });
+}
 
 function getPieceColor(piece) {
     if (piece[0] === 'W' || piece[0] === 'w') {
@@ -430,6 +450,10 @@ function getPieceType(piece) {
     };
 
     return piece.length <= 3 ? pieces[piece[1]] : piece.split('-')[1];
+}
+
+function changeCurrentPlayer(currentPlayer) {
+    return currentPlayer === 'white' ? 'black' : 'white';
 }
 
 function getPieceLongNameFromShortName(pieceName) {
