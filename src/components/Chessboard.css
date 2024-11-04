@@ -1,0 +1,7 @@
+.chessboard {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr); /* Create 8 equal columns */
+  grid-template-rows: repeat(8, 1fr); /* Create 8 equal rows */
+  width: 720px; /* Set width to accommodate the squares */
+  height: 720px; /* Set height to accommodate the squares */
+}
