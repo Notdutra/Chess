@@ -1,3 +1,5 @@
+import js from "@eslint/js";
+
 const boardLetters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 
 let squareLetter;
@@ -6,6 +8,8 @@ let player;
 
 var whiteKingInCheck;
 var blackKingInCheck;
+var checkmate;
+var stalemate;
 
 const directionLetterBy = (direction, num) => {
     const index = boardLetters.indexOf(squareLetter) + direction * num;
@@ -33,35 +37,49 @@ export function createStartingPositionBoardArray() {
 let possibleMoves = [];
 export function handleSquareClick(clickedSquare, gameState) {
 
+    if (checkmate) {
+        console.log(`Game Over - Checkmate player ${player} won`);
+        return;
+    } else if (stalemate) {
+        console.log('Game Over - Stalemate');
+        return;
+    }
+
     const { selectedSquare, currentPlayer, boardArray, setSelectedSquare, setBoardArray, setCurrentPlayer, setHighlightedSquares } = gameState;
     const piece = squareHasPiece(clickedSquare, boardArray);
     const pieceColor = piece ? getPieceColor(piece) : null;
     player = currentPlayer;
 
     if (piece && pieceColor === currentPlayer && selectedSquare !== clickedSquare) {
+        hideLegalMovesSquares();
         setSelectedSquare(clickedSquare);
         possibleMoves = getPossibleMoves(piece, clickedSquare, boardArray);
+        let safeMoves = possibleMoves.filter(move => isMoveSafe(boardArray, clickedSquare, move, currentPlayer));
         const pieceInfo = getAllPieceInfo(gameState.boardArray);
         const isCheck = isBoardInCheck(pieceInfo, boardArray);
         let isCheckmate = checkmateCheck(pieceInfo, boardArray);
-        console.log(isCheckmate);
+
+        if (stalemate) {
+            console.log('Game Over - Stalemate');
+        }
         if (isCheckmate) {
-            console.log('Checkmate');
+            console.log(`Game Over - Checkmate player ${player} won`);
             return;
-
-        }
-
-        // i need to remove any move in possibleMoves that will put king in check
-        possibleMoves = possibleMoves.filter(move => isMoveSafe(boardArray, clickedSquare, move, currentPlayer));
-        if (possibleMoves.length === 0) {
+        } else if (isCheck) {
+            console.log('Check');
+        } else if (possibleMoves.length === 0) {
+            console.log('Piece is blocked')
             setSelectedSquare(null);
-            hideLegalMovesSquares();
+            return;
+        } else if (safeMoves.length === 0) {
+            setSelectedSquare(null);
             return;
         }
 
-        showLegalMovesSquares(possibleMoves, boardArray);
+        showLegalMovesSquares(safeMoves, boardArray);
         return;
-    } else if (possibleMoves != [] && possibleMoves.includes(clickedSquare)) {
+
+    } else if (selectedSquare && possibleMoves != [] && possibleMoves.includes(clickedSquare)) {
         const preMoveBoard = movePiece(boardArray, selectedSquare, clickedSquare);
         const pieceInfo = getAllPieceInfo(preMoveBoard);
         const isCheck = isBoardInCheck(pieceInfo, boardArray);
@@ -69,7 +87,6 @@ export function handleSquareClick(clickedSquare, gameState) {
         if (isCheck) {
             setSelectedSquare(null);
             hideLegalMovesSquares();
-
         } else {
             setBoardArray(preMoveBoard);
 
@@ -108,53 +125,37 @@ function isMoveSafe(boardArray, from, to, currentPlayer) {
 
     let isCheck = isBoardInCheck(pieceInfo, newBoardArray);
     // Check if the king is in check
+
+    // console.log(`piece ${piece}`)
     return !isCheck;
 }
 
+function getValidMoves(piece, position, boardArray) {
+    const possibleMoves = getPossibleMoves(piece, position, boardArray);
+    return possibleMoves.filter(move => isMoveSafe(boardArray, position, move, player));
+
+}
+
 function checkmateCheck(pieceInfo, boardArray) {
-    // is the king in check? if it is we can investigate further else we can return false
-    // Check if the current player is in checkmate
-    // If the player is in checkmate, end the game
-    // If the player is in check, display a message
-    // If the player is not in check, do nothing
+    if (checkmate) return true;
 
-    if (whiteKingInCheck || blackKingInCheck) {
-        if (whiteKingInCheck) {
-            console.log('White King in Check');
-        } else if (blackKingInCheck) {
-            console.log('Black King in Check');
+    let totalSafeMoves = [];
+
+    pieceInfo.forEach(info => {
+        if (getPieceColor(info.piece) === player) {
+            let safeMoves = getValidMoves(info.piece, info.position, boardArray);
+            safeMoves.length !== 0 && totalSafeMoves.push(...safeMoves)
         }
-
-        console.log(pieceInfo);
-
-        let moves = [];
-
-        pieceInfo.forEach(piece => {
-            moves.push(...piece.moves);
-        });
-
-        let safemoves = moves.filter(move => isMoveSafe(boardArray, pieceInfo[0].position, move, player));
-
-        console.log(`safemoves: ${safemoves}`);
-
-        // let possibleMoves = [];
-
-        // pieceInfo.forEach(piece => {
-        //     if (piece.piece[0] === player[0].toUpperCase()) {
-        //         possibleMoves.push(...piece.moves);
-        //     }
-        // });
-
-        // let safeMoves = possibleMoves.filter(move => isMoveSafe(boardArray, pieceInfo[0].position, move, player));  // Check if the move is safe
-
-        // if (safeMoves.length === 0) {
-        //     console.log('Checkmate');
-        //     return true;
-        // }
+    });
 
 
-        // console.log(`safeMoves: ${safeMoves}`);
-
+    if (totalSafeMoves.length === 0) {
+        if (whiteKingInCheck || blackKingInCheck) {
+            checkmate = true;
+            return true;
+        } else {
+            stalemate = true;
+        }
     }
 
     return false
