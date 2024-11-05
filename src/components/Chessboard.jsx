@@ -1,3 +1,4 @@
+import React, { useEffect } from 'react';
 import './Chessboard.css';
 import Square from './Square';
 import { useState } from 'react';
@@ -8,6 +9,17 @@ function Chessboard() {
     const [currentPlayer, setCurrentPlayer] = useState('white');
     const [boardArray, setBoardArray] = useState(createStartingPositionBoardArray());
     const [highlightedSquares, setHighlightedSquares] = useState([]);
+
+    useEffect(() => {
+        const chessboardElement = document.querySelector('.chessboard');
+        const handleContextMenu = (event) => {
+            event.preventDefault();
+        };
+        chessboardElement.addEventListener('contextmenu', handleContextMenu);
+        return () => {
+            chessboardElement.removeEventListener('contextmenu', handleContextMenu);
+        };
+    }, []);
 
     function handleSquareClick(squareName) {
         const gameState = {
