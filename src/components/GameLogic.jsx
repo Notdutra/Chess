@@ -35,6 +35,7 @@ export function createStartingPositionBoardArray() {
 }
 
 let possibleMoves = [];
+let logOfMoves = [];
 export function handleSquareClick(clickedSquare, gameState) {
 
     if (checkmate) {
@@ -54,7 +55,7 @@ export function handleSquareClick(clickedSquare, gameState) {
         hideLegalMovesSquares();
         setSelectedSquare(clickedSquare);
         possibleMoves = getPossibleMoves(piece, clickedSquare, boardArray);
-        let safeMoves = possibleMoves.filter(move => isMoveSafe(boardArray, clickedSquare, move, currentPlayer));
+        let safeMoves = possibleMoves.filter(move => isMoveSafe(boardArray, clickedSquare, move));
         const pieceInfo = getAllPieceInfo(gameState.boardArray);
         const isCheck = isBoardInCheck(pieceInfo, boardArray);
         let isCheckmate = checkmateCheck(pieceInfo, boardArray);
@@ -89,6 +90,9 @@ export function handleSquareClick(clickedSquare, gameState) {
             hideLegalMovesSquares();
         } else {
             setBoardArray(preMoveBoard);
+            logOfMoves.push({ from: selectedSquare, to: clickedSquare });
+
+            isBoardInCheckNow(pieceInfo);
 
             setSelectedSquare(null);
             hideLegalMovesSquares();
@@ -104,7 +108,7 @@ export function handleSquareClick(clickedSquare, gameState) {
 }
 
 // Helper function to simulate a move and check if the king is in check
-function isMoveSafe(boardArray, from, to, currentPlayer) {
+function isMoveSafe(boardArray, from, to) {
     // Create a deep copy of the board
     const newBoardArray = boardArray.map(row => row.slice());
 
@@ -132,7 +136,7 @@ function isMoveSafe(boardArray, from, to, currentPlayer) {
 
 function getValidMoves(piece, position, boardArray) {
     const possibleMoves = getPossibleMoves(piece, position, boardArray);
-    return possibleMoves.filter(move => isMoveSafe(boardArray, position, move, player));
+    return possibleMoves.filter(move => isMoveSafe(boardArray, position, move));
 
 }
 
@@ -396,14 +400,33 @@ function movePiece(boardArray, selectedSquare, squareName) {
 
 function isBoardInCheck(currentPlayerInfo, boardArray) {
     const currentAttackAndThreats = currentPlayerInfo.pop();
-
     let threat = currentAttackAndThreats.threat;
+
+    if (!threat) return false;
+
 
     threat.includes('WK') ? whiteKingInCheck = true : whiteKingInCheck = false;
     threat.includes('BK') ? blackKingInCheck = true : blackKingInCheck = false;
 
     return whiteKingInCheck || blackKingInCheck;
 
+}
+
+function isBoardInCheckNow(currentPlayerInfo) {
+    // Filter pieces that have any attacks listed
+    const threats = currentPlayerInfo.filter(piece => piece.attacks.length > 0);
+
+    // Check if any piece is attacking the White King (WK) or Black King (BK)
+    const wkInCheck = threats.some(piece => piece.attacks.includes('WK'));
+    const bkInCheck = threats.some(piece => piece.attacks.includes('BK'));
+
+    if (wkInCheck) {
+        console.log('White King is in check');
+        return whiteking = true;
+    } else if (bkInCheck) {
+        console.log('Black King is in check');
+        return blackKingInCheck = true;
+    } else return false;
 }
 
 function getAllPieceInfo(boardArray) {
