@@ -10,6 +10,7 @@ var whiteKingInCheck;
 var blackKingInCheck;
 var checkmate;
 var stalemate;
+var winner;
 
 const directionLetterBy = (direction, num) => {
     const index = boardLetters.indexOf(squareLetter) + direction * num;
@@ -36,13 +37,14 @@ export function createStartingPositionBoardArray() {
 
 let possibleMoves = [];
 let logOfMoves = [];
+
 export function handleSquareClick(clickedSquare, gameState) {
 
     if (checkmate) {
-        console.log(`Game Over - Checkmate player ${player} won`);
+        endGame(checkmate);
         return;
     } else if (stalemate) {
-        console.log('Game Over - Stalemate');
+        endGame('stalemate');
         return;
     }
 
@@ -107,6 +109,14 @@ export function handleSquareClick(clickedSquare, gameState) {
     }
 }
 
+function endGame(type) {
+    if (type === 'checkmate') {
+        console.log(`Game Over - Checkmate player ${winner} won`);
+    } else if (type === 'stalemate') {
+        console.log('Game Over - Stalemate');
+    }
+}
+
 // Helper function to simulate a move and check if the king is in check
 function isMoveSafe(boardArray, from, to) {
     // Create a deep copy of the board
@@ -154,7 +164,12 @@ function checkmateCheck(pieceInfo, boardArray) {
 
 
     if (totalSafeMoves.length === 0) {
-        if (whiteKingInCheck || blackKingInCheck) {
+        if (whiteKingInCheck) {
+            winner = 'black';
+            checkmate = true;
+            return true;
+        } else if (blackKingInCheck) {
+            winner = 'white';
             checkmate = true;
             return true;
         } else {
