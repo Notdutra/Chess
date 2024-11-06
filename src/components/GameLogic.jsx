@@ -94,9 +94,17 @@ export function handleSquareClick(clickedSquare, gameState) {
             setBoardArray(preMoveBoard);
             logOfMoves.push({ from: selectedSquare, to: clickedSquare });
 
-            isBoardInCheckNow(pieceInfo);
+            let check = isBoardInCheckNow(pieceInfo);
+            if (check) {
+                console.log('now check if checkmate');
+            }
 
             setSelectedSquare(null);
+            let isCheckmate = checkmateCheck(pieceInfo, boardArray);
+            if (isCheckmate) {
+                console.log(`Game Over - Checkmate player ${player} won`);
+                return;
+            }
             hideLegalMovesSquares();
             setCurrentPlayer(changeCurrentPlayer(currentPlayer));
             possibleMoves = [];
@@ -437,7 +445,7 @@ function isBoardInCheckNow(currentPlayerInfo) {
 
     if (wkInCheck) {
         console.log('White King is in check');
-        return whiteking = true;
+        return whiteKingInCheck = true;
     } else if (bkInCheck) {
         console.log('Black King is in check');
         return blackKingInCheck = true;
