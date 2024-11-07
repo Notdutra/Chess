@@ -1,4 +1,3 @@
-import js from "@eslint/js";
 
 const boardLetters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 
@@ -58,19 +57,21 @@ export function handleSquareClick(clickedSquare, gameState) {
         setSelectedSquare(clickedSquare);
         possibleMoves = getPossibleMoves(piece, clickedSquare, boardArray);
         let safeMoves = possibleMoves.filter(move => isMoveSafe(boardArray, clickedSquare, move));
-        const pieceInfo = getAllPieceInfo(gameState.boardArray);
-        const isCheck = isBoardInCheck(pieceInfo, boardArray);
-        let isCheckmate = checkmateCheck(pieceInfo, boardArray);
+        const currentPlayerPieceInfo = getAllPieceInfo(gameState.boardArray)[0];
+        const opponentPieceInfo = getAllPieceInfo(gameState.boardArray)[1];
+
+        const isCheck = isBoardInCheck(currentPlayerPieceInfo, boardArray);
+        let isCheckmate = checkmateCheck(currentPlayerPieceInfo, boardArray, opponentPieceInfo);
 
         if (stalemate) {
             console.log('Game Over - Stalemate');
         }
         if (isCheckmate) {
-            console.log(`Game Over - Checkmate player ${player} won`);
+            console.log(`Game Over - Checkmate player ${winner} won`);
             return;
         } else if (isCheck) {
-            console.log('Check');
-        } else if (possibleMoves.length === 0) {
+            console.log('Check 1');
+        } if (possibleMoves.length === 0) {
             console.log('Piece is blocked')
             setSelectedSquare(null);
             return;
@@ -84,27 +85,24 @@ export function handleSquareClick(clickedSquare, gameState) {
 
     } else if (selectedSquare && possibleMoves != [] && possibleMoves.includes(clickedSquare)) {
         const preMoveBoard = movePiece(boardArray, selectedSquare, clickedSquare);
-        const pieceInfo = getAllPieceInfo(preMoveBoard);
-        const isCheck = isBoardInCheck(pieceInfo, boardArray);
+        const currentPlayerPieceInfo = getAllPieceInfo(preMoveBoard)[0];
+        const opponentPieceInfo = getAllPieceInfo(preMoveBoard)[1];
+        const isCheck = isBoardInCheck(currentPlayerPieceInfo, boardArray);
 
         if (isCheck) {
             setSelectedSquare(null);
             hideLegalMovesSquares();
         } else {
-            setBoardArray(preMoveBoard);
-            logOfMoves.push({ from: selectedSquare, to: clickedSquare });
-
-            let check = isBoardInCheckNow(pieceInfo);
-            if (check) {
-                console.log('now check if checkmate');
-            }
-
+            // logOfMoves.push({ from: selectedSquare, to: clickedSquare });
+            isBoardInCheckNow(currentPlayerPieceInfo, preMoveBoard, opponentPieceInfo);
+            let isCheckmate = checkmateCheck(currentPlayerPieceInfo, preMoveBoard, opponentPieceInfo);
             setSelectedSquare(null);
-            let isCheckmate = checkmateCheck(pieceInfo, boardArray);
+            setBoardArray(preMoveBoard);
             if (isCheckmate) {
                 console.log(`Game Over - Checkmate player ${player} won`);
                 return;
             }
+
             hideLegalMovesSquares();
             setCurrentPlayer(changeCurrentPlayer(currentPlayer));
             possibleMoves = [];
@@ -143,9 +141,9 @@ function isMoveSafe(boardArray, from, to) {
     newBoardArray[endRowIndex][endColumnIndex] = piece;
 
     // Get all piece info after the move
-    const pieceInfo = getAllPieceInfo(newBoardArray);
+    const currentPlayerPieceInfo = getAllPieceInfo(newBoardArray)[0];
 
-    let isCheck = isBoardInCheck(pieceInfo, newBoardArray);
+    let isCheck = isBoardInCheck(currentPlayerPieceInfo, newBoardArray);
     // Check if the king is in check
 
     // console.log(`piece ${piece}`)
@@ -158,34 +156,67 @@ function getValidMoves(piece, position, boardArray) {
 
 }
 
-function checkmateCheck(pieceInfo, boardArray) {
+function checkmateCheck(currentPlayerPieceInfo, boardArray, opponentPieceInfo) {
     if (checkmate) return true;
 
-    let totalSafeMoves = [];
+    let current = player;
+    let opponent = current === 'white' ? 'black' : 'white';
 
-    pieceInfo.forEach(info => {
-        if (getPieceColor(info.piece) === player) {
-            let safeMoves = getValidMoves(info.piece, info.position, boardArray);
-            safeMoves.length !== 0 && totalSafeMoves.push(...safeMoves)
+    let totalSafeMovesForPlayer = [];
+    let totalSafeMovesForOpponnet = [];
+
+    currentPlayerPieceInfo.forEach(info => {
+        if (getPieceColor(info.piece) === current) {
+            const safeMoves = getValidMoves(info.piece, info.position, boardArray);
+            safeMoves.length !== 0 && totalSafeMovesForPlayer.push(...safeMoves)
         }
     });
 
-
-    if (totalSafeMoves.length === 0) {
-        if (whiteKingInCheck) {
-            winner = 'black';
-            checkmate = true;
-            return true;
-        } else if (blackKingInCheck) {
-            winner = 'white';
-            checkmate = true;
-            return true;
-        } else {
-            stalemate = true;
+    opponentPieceInfo.forEach(info => {
+        if (getPieceColor(info.piece) === opponent) {
+            const safeMoves = getValidMoves(info.piece, info.position, boardArray);
+            safeMoves.length !== 0 && totalSafeMovesForOpponnet.push(...safeMoves)
         }
+    });
+
+    console.log(boardArray);
+
+
+
+    console.log('totalSafeMovesForPlayer - ' + player);
+    console.log(totalSafeMovesForPlayer);
+
+    console.log('totalSafeMovesForOpponnet - ' + opponent);
+    console.log(totalSafeMovesForOpponnet);
+
+
+    if (whiteKingInCheck && totalSafeMovesForPlayer.length === 0) {
+        console.log(`yes there is a checkmate, ${winner} won`);
+        winner = 'black';
+        checkmate = true;
+        return true;
+    } else if (blackKingInCheck && totalSafeMovesForOpponnet.length === 0) {
+        winner = 'white';
+        checkmate = true;
+        console.log(`yes there is a checkmate, ${winner} won`);
+        return true;
     }
 
-    return false
+    // if (totalSafeMovesForPlayer.length === 0) {
+    //     if (whiteKingInCheck) {
+    //         console.log(`yes there is a checkmate, ${winner} won`);
+    //         winner = 'black';
+    //         checkmate = true;
+    //         return true;
+    //     } else if (blackKingInCheck) {
+    //         winner = 'white';
+    //         checkmate = true;
+    //         console.log(`yes there is a checkmate, ${winner} won`);
+    //         return true;
+    //     } else {
+    //         // stalemate = true;
+    //     }
+    // }
 }
 
 export function getPossibleMoves(piece, position, boardArray) {
@@ -233,7 +264,7 @@ function pawnMoves(piece, aPieceSquare, boardArray) {
 
     // Check for promotion row
     if (squareNumber === promotionRow) {
-        console.log('Promote Pawn');
+
         return moves;
     }
 
@@ -422,7 +453,7 @@ function movePiece(boardArray, selectedSquare, squareName) {
 }
 
 function isBoardInCheck(currentPlayerInfo, boardArray) {
-    const currentAttackAndThreats = currentPlayerInfo.pop();
+    const currentAttackAndThreats = currentPlayerInfo[currentPlayerInfo.length - 1];
     let threat = currentAttackAndThreats.threat;
 
     if (!threat) return false;
@@ -435,24 +466,42 @@ function isBoardInCheck(currentPlayerInfo, boardArray) {
 
 }
 
-function isBoardInCheckNow(currentPlayerInfo) {
+function isBoardInCheckNow(currentPlayerInfo, boardArray, opponentPieceInfo) {
     // Filter pieces that have any attacks listed
-    const threats = currentPlayerInfo.filter(piece => piece.attacks.length > 0);
+    const threats = currentPlayerInfo.filter(piece => piece?.attacks?.length > 0);
 
     // Check if any piece is attacking the White King (WK) or Black King (BK)
     const wkInCheck = threats.some(piece => piece.attacks.includes('WK'));
     const bkInCheck = threats.some(piece => piece.attacks.includes('BK'));
 
     if (wkInCheck) {
-        console.log('White King is in check');
+        console.log('this is check 111');
+
+        if (checkmateCheck(currentPlayerInfo, boardArray, opponentPieceInfo)) {
+            console.log('Game Over - Checkmate player white won');
+        }
         return whiteKingInCheck = true;
     } else if (bkInCheck) {
-        console.log('Black King is in check');
+        console.log('this is check 112');
+        if (checkmateCheck(currentPlayerInfo, boardArray, opponentPieceInfo)) {
+            console.log('Game Over - Checkmate player white won');
+        } else {
+            console.log(' apparently this isnt gameover lol');
+            console.log('here is the board');
+            console.log();
+
+
+
+        }
+
         return blackKingInCheck = true;
     } else return false;
 }
 
 function getAllPieceInfo(boardArray) {
+
+    const opponent = player === 'white' ? 'black' : 'white';
+
     const currentPlayerInfo = [];
     const opponentInfo = [];
 
@@ -469,17 +518,21 @@ function getAllPieceInfo(boardArray) {
         }
     }
 
-    const allAtackedPieces = new Set(currentPlayerInfo.flatMap(piece => piece.attacks || []));
-    const allThreatenedPieces = new Set(opponentInfo.flatMap(piece => piece.attacks || []));
+    const currentPlayerAttacking = new Set(currentPlayerInfo.flatMap(piece => piece.attacks || []));
+    const opponentAttackingPlayer = new Set(opponentInfo.flatMap(piece => piece.attacks || []));
 
-    let color = player === 'white' ? 'white' : 'black';
+    let playerAttacks = `Pieces ${player} can capture: ${[...currentPlayerAttacking].join(', ')}`;
+    let playerPiecesInDanger = `Pieces ${player} could lose: ${[...opponentAttackingPlayer].join(', ')}`;
 
-    let attack = `Pieces ${color} can capture: ${[...allAtackedPieces].join(', ')}`;
-    let threat = `Pieces ${color} could lose: ${[...allThreatenedPieces].join(', ')}`;
+    let opponentAttacks = `Pieces ${opponent} can capture: ${[...opponentAttackingPlayer].join(', ')}`;
+    let opponentPiecesInDanger = `Pieces ${opponent} could lose: ${[...currentPlayerAttacking].join(', ')}`;
 
-    currentPlayerInfo.push({ attack, threat });
 
-    return currentPlayerInfo;
+
+    currentPlayerInfo.push({ attack: playerAttacks, threat: playerPiecesInDanger });
+    opponentInfo.push({ attack: opponentAttacks, threat: opponentPiecesInDanger });
+
+    return [currentPlayerInfo, opponentInfo];
 }
 
 function createPieceInfo(piece, position, pieceColor, boardArray) {
@@ -558,6 +611,7 @@ function showLegalMovesSquares(squares, boardArray) {
 }
 
 function getPieceColor(piece) {
+    if (!piece) return;
     if (piece[0] === 'W' || piece[0] === 'w') {
         return 'white';
     } else {
