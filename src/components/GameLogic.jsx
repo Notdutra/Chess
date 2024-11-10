@@ -182,8 +182,8 @@ function isSquareBeingAttacked(square, boardArray) {
 function checkmateCheck(currentPlayerInfo, boardArray) {
     if (checkmate) { return true }
     if (blackKingInCheck || whiteKingInCheck) {
-        console.log('i am here');
 
+        console.log(boardArray);
 
         const opponentColor = player === 'white' ? 'black' : 'white';
         const opponentKing = player === 'white' ? 'BK' : 'WK';
@@ -196,6 +196,7 @@ function checkmateCheck(currentPlayerInfo, boardArray) {
         const playerThreats = currentPlayer[currentPlayer.length - 1].threats;
         const playerAttackSquares = currentPlayer[currentPlayer.length - 1].attackSquares;
         const playerThreatenedSquares = currentPlayer[currentPlayer.length - 1].threatenedSquares;
+        const playerCoverMoves = currentPlayer[currentPlayer.length - 1].coverMoves;
         currentPlayer.pop(); // remove the last element which is the player status
 
         // And the opponent is black, not being racist, just for the sake of the example
@@ -205,6 +206,7 @@ function checkmateCheck(currentPlayerInfo, boardArray) {
         const OpponentThreats = opponent[opponent.length - 1].threats;
         const OpponentAttackSquares = opponent[opponent.length - 1].attackSquares;
         const OpponentThreatenedSquares = opponent[opponent.length - 1].threatenedSquares;
+        const OpponentCoverMoves = opponent[opponent.length - 1].coverMoves;
         opponent.pop();
 
         let piecesAttackignOpponentKing = [];
@@ -220,7 +222,7 @@ function checkmateCheck(currentPlayerInfo, boardArray) {
         piecesAttackignOpponentKing.forEach(pieceAttackingKing => {
             currentPlayer.forEach(pieceInfo => {
                 const piece = pieceInfo.piece;
-                const attackSquares = pieceInfo.attackSquares;
+                const attackSquares = pieceInfo.coverMoves;
 
                 if (attackSquares.includes(getPiecePosition(pieceAttackingKing, boardArray))) {
                     console.log('piece bla bla bla ', piece);
@@ -493,6 +495,10 @@ function kingMoves(aPieceSquare, aPieceColor, boardArray) {
     return moves;
 }
 
+function getCoverMoves(piece, boardArray) {
+
+}
+
 function movePiece(boardArray, selectedSquare, squareName) {
     let newBoardArray = boardArray.map(row => row.slice());
     const [startColumn, startRow] = selectedSquare.split('');
@@ -597,13 +603,15 @@ function createPieceInfo(piece, position, pieceColor, boardArray) {
     const moves = getMovesOnly(possibleMoves, boardArray);
     const attacks = getCapturesOnly(pieceColor, possibleMoves, boardArray).map(square => squareHasPiece(square, boardArray));
     const attackedSquares = getAttackedSquares(piece, position, boardArray);
+    const coverMoves = getCoverMoves(piece, position);
 
     const pieceInfo = {
         piece: piece,
         position: position,
         moves: moves,
         attacks: attacks,
-        attackSquares: attackedSquares
+        attackSquares: attackedSquares,
+        coverMoves: coverMoves
     };
 
     return pieceInfo;
