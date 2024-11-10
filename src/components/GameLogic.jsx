@@ -249,13 +249,14 @@ function checkmateCheck(currentPlayerInfo, boardArray) {
     return false;
 }
 
+// Export function for getting possible moves (default is without occupied squares)
 export function getPossibleMoves(piece, position, boardArray) {
-    squareLetter = position[0];
-    squareNumber = parseInt(position[1]);
+    const squareLetter = position[0];
+    const squareNumber = parseInt(position[1]);
     let moves = [];
 
-    const pieceType = getPieceType(piece)
-    const pieceColor = getPieceColor(piece)
+    const pieceType = getPieceType(piece);
+    const pieceColor = getPieceColor(piece);
 
     switch (pieceType) {
         case 'pawn':
@@ -276,51 +277,40 @@ export function getPossibleMoves(piece, position, boardArray) {
         case 'king':
             moves = kingMoves(position, pieceColor, boardArray);
             break;
-        default:
     }
 
     return moves;
 }
 
-function getAllPawnThreats(piece, aPieceSquare) {
-    squareLetter = aPieceSquare[0];
-    squareNumber = parseInt(aPieceSquare[1]);
-    let moves = [];
+function getCoverMoves(piece, position, boardArray) {
+    const pieceType = getPieceType(piece);
+    const pieceColor = getPieceColor(piece);
 
-    const aPieceColor = getPieceColor(piece)
-    const direction = aPieceColor === 'white' ? 1 : -1; // 1 for White (up), -1 for Black (down)
-
-    if (direction === 1 && squareNumber === 8 || direction === -1 && squareNumber === 1) {
-        return moves;
+    switch (pieceType) {
+        case 'pawn':
+            return getAllPawnThreats(piece, position); // for pawns, only threats are diagonal
+        case 'rook':
+            return rookMoves(position, pieceColor, boardArray, true);
+        case 'knight':
+            return knightMoves(position, pieceColor, boardArray, true);
+        case 'bishop':
+            return bishopMoves(position, pieceColor, boardArray, true);
+        case 'queen':
+            return queenMoves(position, pieceColor, boardArray, true);
+        case 'king':
+            return kingMoves(position, pieceColor, boardArray, true);
     }
-
-
-    // Check diagonal captures (left and right)
-    const diagonals = [
-        squareLetter !== 'a' && `${directionLetterBy(-1, 1)}${squareNumber + direction}`,
-        squareLetter !== 'h' && `${directionLetterBy(1, 1)}${squareNumber + direction}`
-    ];
-
-    diagonals.forEach(diagonal => {
-        if (diagonal) {
-            moves.push(diagonal);
-        }
-    });
-
-    return moves;
-
-
 }
 
-function pawnMoves(piece, aPieceSquare, boardArray) {
-    squareLetter = aPieceSquare[0];
-    squareNumber = parseInt(aPieceSquare[1]);
+function pawnMoves(piece, position, boardArray, includeOccupied = false) {
+    const squareLetter = position[0];
+    const squareNumber = parseInt(position[1]);
     let moves = [];
 
-    const aPieceColor = getPieceColor(piece)
-    const direction = aPieceColor === 'white' ? 1 : -1; // 1 for White (up), -1 for Black (down)
-    const startingRow = aPieceColor === 'white' ? 2 : 7;
-    const promotionRow = aPieceColor === 'white' ? 8 : 1;
+    const pieceColor = getPieceColor(piece);
+    const direction = pieceColor === 'white' ? 1 : -1; // 1 for White (up), -1 for Black (down)
+    const startingRow = pieceColor === 'white' ? 2 : 7;
+    const promotionRow = pieceColor === 'white' ? 8 : 1;
 
     // Check for promotion row
     if (squareNumber === promotionRow) {
@@ -330,13 +320,13 @@ function pawnMoves(piece, aPieceSquare, boardArray) {
 
     // Forward move by 1 square
     const squareInFront = `${squareLetter}${squareNumber + direction}`;
-    if (squareInFront && !boardArray[8 - (squareNumber + direction)][boardLetters.indexOf(squareLetter)]) { // check if square exists and is empty
+    if (!includeOccupied && squareInFront && !boardArray[8 - (squareNumber + direction)][boardLetters.indexOf(squareLetter)]) {
         moves.push(squareInFront);
 
         // Double move if pawn is on starting row
-        if (squareNumber === startingRow) { // if pawn is on starting row
+        if (squareNumber === startingRow) {
             const doubleSquareInFront = `${squareLetter}${squareNumber + 2 * direction}`;
-            if (doubleSquareInFront && !boardArray[8 - (squareNumber + 2 * direction)][boardLetters.indexOf(squareLetter)]) { // check if square exists and is also empty
+            if (doubleSquareInFront && !boardArray[8 - (squareNumber + 2 * direction)][boardLetters.indexOf(squareLetter)]) {
                 moves.push(doubleSquareInFront);
             }
         }
@@ -344,17 +334,15 @@ function pawnMoves(piece, aPieceSquare, boardArray) {
 
     // Check diagonal captures (left and right)
     const diagonals = [
-        squareLetter !== 'a' && `${directionLetterBy(-1, 1)}${squareNumber + direction}`,
-        squareLetter !== 'h' && `${directionLetterBy(1, 1)}${squareNumber + direction}`
+        squareLetter !== 'a' && `${directionLetterBy(-1, 1, squareLetter)}${squareNumber + direction}`,
+        squareLetter !== 'h' && `${directionLetterBy(1, 1, squareLetter)}${squareNumber + direction}`
     ];
 
     diagonals.forEach(diagonal => {
         if (diagonal) {
             const captureSquare = boardArray[8 - (squareNumber + direction)][boardLetters.indexOf(diagonal[0])];
-            if (captureSquare && isOpponentPiece(captureSquare, aPieceColor)) {
-                if (!moves.includes(diagonal)) {  // Avoid duplicate entries
-                    moves.push(diagonal);
-                }
+            if (includeOccupied || (captureSquare && isOpponentPiece(captureSquare, pieceColor))) {
+                moves.push(diagonal);
             }
         }
     });
@@ -362,55 +350,52 @@ function pawnMoves(piece, aPieceSquare, boardArray) {
     return moves;
 }
 
-function rookMoves(aPieceSquare, aPieceColor, boardArray) {
-    squareLetter = aPieceSquare[0];
-    squareNumber = parseInt(aPieceSquare[1]);
+function rookMoves(position, pieceColor, boardArray, includeOccupied = false) {
+    const squareLetter = position[0];
+    const squareNumber = parseInt(position[1]);
     let moves = [];
-
-    // Define directions for rook: up, down, right, left
     const directions = [
-        { letterDirection: 0, numberDirection: 1 },  // Up
-        { letterDirection: 0, numberDirection: -1 }, // Down
-        { letterDirection: 1, numberDirection: 0 },  // Right
-        { letterDirection: -1, numberDirection: 0 }  // Left
+        { letterDirection: 0, numberDirection: 1 }, { letterDirection: 0, numberDirection: -1 },
+        { letterDirection: 1, numberDirection: 0 }, { letterDirection: -1, numberDirection: 0 }
     ];
 
-    // Iterate over each direction
     directions.forEach(({ letterDirection, numberDirection }) => {
         for (let i = 1; i <= 7; i++) {
-            const letter = directionLetterBy(letterDirection, i);
-            const number = directionNumberBy(numberDirection, i);
-
-            // Ensure we're within board bounds
+            const letter = directionLetterBy(letterDirection, i, squareLetter);
+            const number = directionNumberBy(numberDirection, i, squareNumber);
             if (!letter || number < 1 || number > 8) break;
 
             const square = `${letter}${number}`;
             const piece = boardArray[8 - number][boardLetters.indexOf(letter)];
 
-            if (!addMoveIfOpponentOrEmpty(square, piece, aPieceColor, moves)) break;
+            if (includeOccupied || addMoveIfOpponentOrEmpty(square, piece, pieceColor, moves)) {
+                moves.push(square);
+            }
+            if (piece && !includeOccupied) break;
         }
     });
+
     return moves;
 }
 
-function bishopMoves(aPieceSquare, aPieceColor, boardArray) {
-    squareLetter = aPieceSquare[0];
-    squareNumber = parseInt(aPieceSquare[1]);
+function bishopMoves(position, pieceColor, boardArray, includeOccupied = false) {
+    const squareLetter = position[0];
+    const squareNumber = parseInt(position[1]);
     let moves = [];
 
-    // Define diagonal directions: [up-right, up-left, down-right, down-left]
+    // Define diagonal directions: up-right, up-left, down-right, down-left
     const directions = [
-        { letterDirection: 1, numberDirection: 1 },
-        { letterDirection: -1, numberDirection: 1 },
-        { letterDirection: 1, numberDirection: -1 },
-        { letterDirection: -1, numberDirection: -1 }
+        { letterDirection: 1, numberDirection: 1 },    // Up-Right
+        { letterDirection: -1, numberDirection: 1 },   // Up-Left
+        { letterDirection: 1, numberDirection: -1 },   // Down-Right
+        { letterDirection: -1, numberDirection: -1 }   // Down-Left
     ];
 
     // Iterate over each diagonal direction
     directions.forEach(({ letterDirection, numberDirection }) => {
         for (let i = 1; i <= 7; i++) {
-            const letter = directionLetterBy(letterDirection, i);
-            const number = directionNumberBy(numberDirection, i);
+            const letter = directionLetterBy(letterDirection, i, squareLetter);
+            const number = directionNumberBy(numberDirection, i, squareNumber);
 
             // Ensure we're within board bounds
             if (!letter || number < 1 || number > 8) break;
@@ -418,86 +403,82 @@ function bishopMoves(aPieceSquare, aPieceColor, boardArray) {
             const square = `${letter}${number}`;
             const piece = boardArray[8 - number][boardLetters.indexOf(letter)];
 
-            if (!addMoveIfOpponentOrEmpty(square, piece, aPieceColor, moves)) break;
+            // Add the square to moves and stop if there's a piece, unless includeOccupied is true
+            if (includeOccupied || addMoveIfOpponentOrEmpty(square, piece, pieceColor, moves)) {
+                moves.push(square);
+            }
+            if (piece && !includeOccupied) break;
         }
     });
 
     return moves;
 }
 
-function knightMoves(aPieceSquare, aPieceColor, boardArray) {
-    squareLetter = aPieceSquare[0];
-    squareNumber = parseInt(aPieceSquare[1]);
+function knightMoves(position, pieceColor, boardArray, includeOccupied = false) {
+    const squareLetter = position[0];
+    const squareNumber = parseInt(position[1]);
     let moves = [];
-
     const directions = [
-        { numberDirection: -2, letterDirection: 1 }, // 2 down 1 right (Upright L)
-        { numberDirection: 1, letterDirection: 2 }, // 1 up 2 right (1 clockwise turn)
-        { numberDirection: 2, letterDirection: -1 }, // 2 up 1 left (Upside down L)
-        { numberDirection: -1, letterDirection: -2 }, // 1 down 2 left (1 counter clockwise turn)
-        { numberDirection: -2, letterDirection: -1 }, // 2 down 1 left (Backwards L)
-        { numberDirection: -1, letterDirection: 2 }, // 1 down 2 right (Backwards L, 1 clockwise turn)
-        { numberDirection: 2, letterDirection: 1 }, // 2 up 1 right (Backwards L, UpsideDown)
-        { numberDirection: 1, letterDirection: -2 } // 1 up 2 left (Backwards L, 1 counter clockwise turn)
+        { numberDirection: -2, letterDirection: 1 }, { numberDirection: 1, letterDirection: 2 },
+        { numberDirection: 2, letterDirection: -1 }, { numberDirection: -1, letterDirection: -2 },
+        { numberDirection: -2, letterDirection: -1 }, { numberDirection: -1, letterDirection: 2 },
+        { numberDirection: 2, letterDirection: 1 }, { numberDirection: 1, letterDirection: -2 }
     ];
 
     directions.forEach(({ numberDirection, letterDirection }) => {
-        const letter = directionLetterBy(letterDirection, 1);
-        const number = directionNumberBy(numberDirection, 1);
-
+        const letter = directionLetterBy(letterDirection, 1, squareLetter);
+        const number = directionNumberBy(numberDirection, 1, squareNumber);
         if (!letter || number < 1 || number > 8) return;
 
         const square = `${letter}${number}`;
         const piece = boardArray[8 - number][boardLetters.indexOf(letter)];
 
-        addMoveIfOpponentOrEmpty(square, piece, aPieceColor, moves);
+        if (includeOccupied || addMoveIfOpponentOrEmpty(square, piece, pieceColor, moves)) {
+            moves.push(square);
+        }
     });
 
     return moves;
 }
 
-function queenMoves(aPieceSquare, aPieceColor, boardArray) {
+function queenMoves(position, pieceColor, boardArray, includeOccupied = false) {
     let moves = [];
-    moves.push(...rookMoves(aPieceSquare, aPieceColor, boardArray));
-    moves.push(...bishopMoves(aPieceSquare, aPieceColor, boardArray));
-
+    moves.push(...rookMoves(position, pieceColor, boardArray, includeOccupied));
+    moves.push(...bishopMoves(position, pieceColor, boardArray, includeOccupied));
     return moves;
 }
 
-function kingMoves(aPieceSquare, aPieceColor, boardArray) {
-    squareLetter = aPieceSquare[0];
-    squareNumber = parseInt(aPieceSquare[1]);
-    let moves = [];
 
+function kingMoves(position, pieceColor, boardArray, includeOccupied = false) {
+    const squareLetter = position[0];
+    const squareNumber = parseInt(position[1]);
+    let moves = [];
     const directions = [
-        { letterDirection: 0, numberDirection: 1 }, // Up
-        { letterDirection: 1, numberDirection: 1 }, // Up-Right
-        { letterDirection: 1, numberDirection: 0 }, // Right
-        { letterDirection: 1, numberDirection: -1 }, // Down-Right
-        { letterDirection: 0, numberDirection: -1 }, // Down
-        { letterDirection: -1, numberDirection: -1 }, // Down-Left
-        { letterDirection: -1, numberDirection: 0 }, // Left
-        { letterDirection: -1, numberDirection: 1 } // Up-Left
+        { letterDirection: 0, numberDirection: 1 }, { letterDirection: 1, numberDirection: 1 },
+        { letterDirection: 1, numberDirection: 0 }, { letterDirection: 1, numberDirection: -1 },
+        { letterDirection: 0, numberDirection: -1 }, { letterDirection: -1, numberDirection: -1 },
+        { letterDirection: -1, numberDirection: 0 }, { letterDirection: -1, numberDirection: 1 }
     ];
 
     directions.forEach(({ letterDirection, numberDirection }) => {
-        const letter = directionLetterBy(letterDirection, 1);
-        const number = directionNumberBy(numberDirection, 1);
-
+        const letter = directionLetterBy(letterDirection, 1, squareLetter);
+        const number = directionNumberBy(numberDirection, 1, squareNumber);
         if (!letter || number < 1 || number > 8) return;
 
         const square = `${letter}${number}`;
         const piece = boardArray[8 - number][boardLetters.indexOf(letter)];
 
-        addMoveIfOpponentOrEmpty(square, piece, aPieceColor, moves);
+        if (includeOccupied || addMoveIfOpponentOrEmpty(square, piece, pieceColor, moves)) {
+            moves.push(square);
+        }
     });
 
     return moves;
 }
 
-function getCoverMoves(piece, boardArray) {
+// function getCoverMoves(piece, boardArray) {
 
-}
+// }
 
 function movePiece(boardArray, selectedSquare, squareName) {
     let newBoardArray = boardArray.map(row => row.slice());
@@ -620,7 +601,8 @@ function createPieceInfo(piece, position, pieceColor, boardArray) {
 function getAttackedSquares(piece, position, boardArray) {
     let attackedSquares = [];
     if (getPieceType(piece) === 'pawn') {
-        attackedSquares = getAllPawnThreats(piece, position)
+        // attackedSquares = getAllPawnThreats(piece, position)
+        // should not need this function anymore
     } else {
         attackedSquares = getPossibleMoves(piece, position, boardArray)
     }
