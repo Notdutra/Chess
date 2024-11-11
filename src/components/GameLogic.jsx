@@ -11,18 +11,10 @@ let blackKingInCheck;
 let checkmate;
 let stalemate;
 let winner;
-
-const directionLetterBy = (direction, num) => {
-    const index = boardLetters.indexOf(squareLetter) + direction * num;
-    return boardLetters[index] || null;
-};
-
-const directionNumberBy = (direction, num) => {
-    const newNumber = squareNumber + direction * num;
-    return newNumber >= 1 && newNumber <= 8 ? newNumber : null;
-};
+let promotionPieces = [];
 
 export function createStartingPositionBoardArray() {
+    savePromotionPieces();
     return [
         ['BR1', 'BN1', 'BB1', 'BQ', 'BK', 'BB2', 'BN2', 'BR2'],
         ['BP1', 'BP2', 'BP3', 'BP4', 'BP5', 'BP6', 'BP7', 'BP8'],
@@ -40,21 +32,26 @@ let logOfMoves = [];
 
 
 export function handleSquareClick(clickedSquare, gameState) {
+
+    if (checkGameStatus()) {
+        return;
+    }
+
     const { selectedSquare, currentPlayer, boardArray, setSelectedSquare, setBoardArray, setCurrentPlayer, setHighlightedSquares } = gameState;
     const piece = squareHasPiece(clickedSquare, boardArray);
     const pieceColor = piece ? getPieceColor(piece) : null;
     player = currentPlayer;
     let opponent = currentPlayer === 'white' ? 'black' : 'white';
+    const currentPlayerInfo = getPlayerInfo(boardArray, player);
+    updatePieceInfoMovesToSafemoves(currentPlayerInfo, boardArray)
 
-    const currentPlayerInfo = getPlayerPieceInfo(boardArray, player);
-    // const opponentPlayerInfo = getPlayerPieceInfo(boardArray, opponent);
+    isCheckmate(currentPlayerInfo, boardArray);
+    isStalemate(currentPlayerInfo);
 
-    let check = isBoardInCheck(currentPlayerInfo);
+    console.log(piece);
+    console.log(boardArray);
 
 
-    checkmateCheck(currentPlayerInfo, boardArray);
-
-    if (checkGameStatus()) return;
 
     if (piece && pieceColor === currentPlayer && selectedSquare !== clickedSquare) {
         handlePieceSelection(clickedSquare, piece, pieceColor, selectedSquare, boardArray, setSelectedSquare, setHighlightedSquares);
@@ -68,13 +65,31 @@ export function handleSquareClick(clickedSquare, gameState) {
     }
 }
 
+function handlePieceSelection(clickedSquare, piece, pieceColor, selectedSquare, boardArray, setSelectedSquare, setHighlightedSquares) {
+    hideLegalMovesSquares();
+
+    possibleMoves = getPossibleMoves(piece, clickedSquare, boardArray, true);
+    const safeMoves = getPieceValidMoves(piece, boardArray, false, true);
+
+    if (safeMoves.length !== 0) {
+        setSelectedSquare(clickedSquare);
+        showLegalMovesSquares(safeMoves, boardArray);
+    }
+
+}
+
 export function handleMoveExecution(clickedSquare, selectedSquare, boardArray, setBoardArray, setSelectedSquare, setCurrentPlayer, currentPlayer) {
+    const selectedPiece = squareHasPiece(selectedSquare, boardArray);
+
     let opponent = currentPlayer === 'white' ? 'black' : 'white';
 
     const preMoveBoard = movePiece(boardArray, selectedSquare, clickedSquare);
 
-    const currentPlayerInfo = getPlayerPieceInfo(preMoveBoard, currentPlayer);
-    const opponentPlayerInfo = getPlayerPieceInfo(preMoveBoard, opponent);
+    const currentPlayerInfo = getPlayerInfo(preMoveBoard, currentPlayer);
+    const opponentPlayerInfo = getPlayerInfo(preMoveBoard, opponent);
+
+    updatePieceInfoMovesToSafemoves(currentPlayerInfo, boardArray)
+    updatePieceInfoMovesToSafemoves(opponentPlayerInfo, boardArray)
 
     if (isOurKingInCheck(currentPlayerInfo)) {
         console.log('our king is in check');
@@ -85,27 +100,26 @@ export function handleMoveExecution(clickedSquare, selectedSquare, boardArray, s
         setBoardArray(preMoveBoard);
         setSelectedSquare(null);
         hideLegalMovesSquares();
-        setCurrentPlayer(changeCurrentPlayer(currentPlayer));
 
-        let isCheck = isBoardInCheck(currentPlayerInfo);
-
-        if (isCheck) {
-            console.log(`${currentPlayer} put ${opponent} in check`);
+        if (selectedPiece && getPieceType(selectedPiece) === 'pawn') {
+            if (currentPlayer === 'white' && clickedSquare[1] === '8') {
+                promotePawnTo(selectedPiece, clickedSquare, preMoveBoard, 'Q');
+            } else if (currentPlayer === 'black' && clickedSquare[1] === '1') {
+                promotePawnTo(selectedPiece, clickedSquare, preMoveBoard, 'Q');
+            }
         }
 
-        const didPlayerPutOpponentInCheckmate = checkmateCheck(currentPlayerInfo, preMoveBoard);
+        setCurrentPlayer(changeCurrentPlayer(currentPlayer));
+
+        isBoardInCheck(currentPlayerInfo, true);
+
+        isCheckmate(currentPlayerInfo, preMoveBoard);
+        isStalemate(opponentPlayerInfo);
     }
-}
 
-function handlePieceSelection(clickedSquare, piece, pieceColor, selectedSquare, boardArray, setSelectedSquare, setHighlightedSquares) {
-    hideLegalMovesSquares();
-    setSelectedSquare(clickedSquare);
-
-    possibleMoves = getPossibleMoves(piece, clickedSquare, boardArray);
-
-    let safeMoves = getValidMoves(piece, clickedSquare, boardArray);
-
-    showLegalMovesSquares(safeMoves, boardArray);
+    if (checkGameStatus()) {
+        return;
+    };
 }
 
 function checkGameStatus() {
@@ -118,6 +132,16 @@ function checkGameStatus() {
         return true;
     }
     return false;
+}
+
+function getAllMovesForPlayer(pieceInfo) {
+    let allValidMoves = [];
+    pieceInfo.forEach(pieceInfo => {
+        const moves = pieceInfo.moves;
+        (moves && moves.length > 0) && allValidMoves.push(moves);
+    });
+
+    return allValidMoves;
 }
 
 function getPiecePosition(piece, boardArray) {
@@ -141,7 +165,7 @@ function endGame(type) {
 }
 
 // Helper function to simulate a move and check if the king is in check
-function isMoveSafe(piece, boardArray, from, to) {
+function isMoveSafe(piece, boardArray, from, to, premove = false, real = false) {
     const color = getPieceColor(piece);
 
     // Create a deep copy of the board
@@ -159,98 +183,39 @@ function isMoveSafe(piece, boardArray, from, to) {
     newBoardArray[startRowIndex][startColumnIndex] = '';
     newBoardArray[endRowIndex][endColumnIndex] = newPiece;
 
-    const simulatedMovesPieceInfoCurrent = getPlayerPieceInfo(newBoardArray, color);
+    const simulatedMovesPieceInfoCurrent = getPlayerInfo(newBoardArray, color);
 
-    const isCheckCurrent = isOurKingInCheck(simulatedMovesPieceInfoCurrent);
-
-    return !isCheckCurrent;
-}
-
-function getValidMoves(piece, position, boardArray) {
-    const possibleMoves = getPossibleMoves(piece, position, boardArray);
-    return possibleMoves.filter(move => isMoveSafe(piece, boardArray, position, move));
-
-}
-
-function isSquareBeingAttacked(square, boardArray) {
-    const opponentColor = player === 'white' ? 'black' : 'white';
-    const opponentInfo = getPlayerPieceInfo(boardArray, opponentColor);
-    const opponentMoves = opponentInfo.flatMap(info => info.moves);
-    const opponnentAttacks = opponentInfo.flatMap(info => info.attacks);
-}
-
-function checkmateCheck(currentPlayerInfo, boardArray) {
-    if (checkmate) { return true }
-    if (blackKingInCheck || whiteKingInCheck) {
-
-        console.log(boardArray);
-
-        const opponentColor = player === 'white' ? 'black' : 'white';
-        const opponentKing = player === 'white' ? 'BK' : 'WK';
-        const opponentInfo = getPlayerPieceInfo(boardArray, opponentColor);
-
-        // Lets imagine we are white
-        console.log('Current player info', currentPlayerInfo);
-        const currentPlayer = currentPlayerInfo.slice();
-        const playerAttacks = currentPlayer[currentPlayer.length - 1].attacks;
-        const playerThreats = currentPlayer[currentPlayer.length - 1].threats;
-        const playerAttackSquares = currentPlayer[currentPlayer.length - 1].attackSquares;
-        const playerThreatenedSquares = currentPlayer[currentPlayer.length - 1].threatenedSquares;
-        const playerCoverMoves = currentPlayer[currentPlayer.length - 1].coverMoves;
-        currentPlayer.pop(); // remove the last element which is the player status
-
-        // And the opponent is black, not being racist, just for the sake of the example
-        console.log('Opponent player info', opponentInfo);
-        let opponent = opponentInfo.slice();
-        const OpponentAttacks = opponent[opponent.length - 1].attacks;
-        const OpponentThreats = opponent[opponent.length - 1].threats;
-        const OpponentAttackSquares = opponent[opponent.length - 1].attackSquares;
-        const OpponentThreatenedSquares = opponent[opponent.length - 1].threatenedSquares;
-        const OpponentCoverMoves = opponent[opponent.length - 1].coverMoves;
-        opponent.pop();
-
-        let piecesAttackignOpponentKing = [];
-        currentPlayer.forEach(pieceInfo => {
-            const piece = pieceInfo.piece;
-            const attacks = pieceInfo.attacks;
-            if (attacks.includes(opponentKing)) {
-                piecesAttackignOpponentKing.push(piece);
-            }
-        });
-
-        let piecesProtectingPiecesThatAttackOpponentKing = [];
-        piecesAttackignOpponentKing.forEach(pieceAttackingKing => {
-            currentPlayer.forEach(pieceInfo => {
-                const piece = pieceInfo.piece;
-                const attackSquares = pieceInfo.coverMoves;
-
-                if (attackSquares.includes(getPiecePosition(pieceAttackingKing, boardArray))) {
-                    console.log('piece bla bla bla ', piece);
-                    console.log('pieceAttackingKing bla bla bla', pieceAttackingKing);
-
-                    piecesProtectingPiecesThatAttackOpponentKing.push(piece);
-                }
-            });
-        });
-
-
-        console.log('piecesAttackignOpponentKing', piecesAttackignOpponentKing);
-        console.log('piecesProtectingPiecesThatAttackOpponentKing', piecesProtectingPiecesThatAttackOpponentKing);
-
-
-
-        // console.log('piecesAttackignOpponentKing', piecesAttackignOpponentKing);
-
-
-
+    if (premove) {
+        const isCheck = isBoardInCheck(simulatedMovesPieceInfoCurrent, real)
+        return !isCheck;
     }
 
+    const isCheck = isOurKingInCheck(simulatedMovesPieceInfoCurrent, real);
 
-    return false;
+    return !isCheck;
 }
 
-// Export function for getting possible moves (default is without occupied squares)
-export function getPossibleMoves(piece, position, boardArray) {
+function getPieceValidMoves(piece, boardArray, premove = false, real = false) {
+    const position = getPiecePosition(piece, boardArray);
+    return getValidMoves(piece, position, boardArray, premove, real);
+}
+
+function getValidMoves(piece, position, boardArray, premove = false, real = false) {
+    const possibleMoves = getPossibleMoves(piece, position, boardArray, false);
+    return possibleMoves.filter(move => isMoveSafe(piece, boardArray, position, move, premove, real));
+}
+
+const directionLetterBy = (direction, num) => {
+    const index = boardLetters.indexOf(squareLetter) + direction * num;
+    return boardLetters[index] || null;
+};
+
+const directionNumberBy = (direction, num) => {
+    const newNumber = squareNumber + direction * num;
+    return newNumber >= 1 && newNumber <= 8 ? newNumber : null;
+};
+
+export function getPossibleMoves(piece, position, boardArray, allowPromotion = false) {
     const squareLetter = position[0];
     const squareNumber = parseInt(position[1]);
     let moves = [];
@@ -260,7 +225,7 @@ export function getPossibleMoves(piece, position, boardArray) {
 
     switch (pieceType) {
         case 'pawn':
-            moves = pawnMoves(piece, position, boardArray);
+            moves = pawnMoves(piece, position, pieceColor, boardArray, allowPromotion);
             break;
         case 'rook':
             moves = rookMoves(position, pieceColor, boardArray);
@@ -282,13 +247,14 @@ export function getPossibleMoves(piece, position, boardArray) {
     return moves;
 }
 
-function getCoverMoves(piece, position, boardArray) {
+function getCoverMoves(piece, position, boardArray, allowPromotion = false) {
+
     const pieceType = getPieceType(piece);
     const pieceColor = getPieceColor(piece);
 
     switch (pieceType) {
         case 'pawn':
-            return getAllPawnThreats(piece, position); // for pawns, only threats are diagonal
+            return pawnMoves(piece, position, pieceColor, boardArray, allowPromotion);
         case 'rook':
             return rookMoves(position, pieceColor, boardArray, true);
         case 'knight':
@@ -302,31 +268,42 @@ function getCoverMoves(piece, position, boardArray) {
     }
 }
 
-function pawnMoves(piece, position, boardArray, includeOccupied = false) {
-    const squareLetter = position[0];
-    const squareNumber = parseInt(position[1]);
+function promotePawnTo(piece, clickedSquare, boardArray, newPiece = null) {
+    let finalPiece;
+
+    switch (newPiece) {
+        case 'R': finalPiece = piece[0] + 'R1'; break;
+        case 'B': finalPiece = piece[0] + 'B1'; break;
+        case 'N': finalPiece = piece[0] + 'N1'; break;
+        default: finalPiece = piece[0] + 'Q'; break;
+    }
+
+    const [column, row] = getColumnAndRow(clickedSquare);
+    boardArray[row][column] = finalPiece;
+}
+
+function pawnMoves(piece, position, aPieceColor, boardArray, allowPromotion = false) {
+
+    squareLetter = position[0];
+    squareNumber = parseInt(position[1]);
     let moves = [];
 
-    const pieceColor = getPieceColor(piece);
-    const direction = pieceColor === 'white' ? 1 : -1; // 1 for White (up), -1 for Black (down)
-    const startingRow = pieceColor === 'white' ? 2 : 7;
-    const promotionRow = pieceColor === 'white' ? 8 : 1;
-
-    // Check for promotion row
-    if (squareNumber === promotionRow) {
-        console.log('Promote Pawn');
+    const direction = aPieceColor === 'white' ? 1 : -1; // 1 for White (up), -1 for Black (down)
+    const startingRow = aPieceColor === 'white' ? 2 : 7;
+    const lastRow = aPieceColor === 'white' ? 8 : 1;
+    if (squareNumber === lastRow) {
         return moves;
     }
 
     // Forward move by 1 square
     const squareInFront = `${squareLetter}${squareNumber + direction}`;
-    if (!includeOccupied && squareInFront && !boardArray[8 - (squareNumber + direction)][boardLetters.indexOf(squareLetter)]) {
+    if (squareInFront && !boardArray[8 - (squareNumber + direction)][boardLetters.indexOf(squareLetter)]) { // check if square exists and is empty
         moves.push(squareInFront);
 
         // Double move if pawn is on starting row
-        if (squareNumber === startingRow) {
+        if (squareNumber === startingRow) { // if pawn is on starting row
             const doubleSquareInFront = `${squareLetter}${squareNumber + 2 * direction}`;
-            if (doubleSquareInFront && !boardArray[8 - (squareNumber + 2 * direction)][boardLetters.indexOf(squareLetter)]) {
+            if (doubleSquareInFront && !boardArray[8 - (squareNumber + 2 * direction)][boardLetters.indexOf(squareLetter)]) { // check if square exists and is also empty
                 moves.push(doubleSquareInFront);
             }
         }
@@ -334,15 +311,17 @@ function pawnMoves(piece, position, boardArray, includeOccupied = false) {
 
     // Check diagonal captures (left and right)
     const diagonals = [
-        squareLetter !== 'a' && `${directionLetterBy(-1, 1, squareLetter)}${squareNumber + direction}`,
-        squareLetter !== 'h' && `${directionLetterBy(1, 1, squareLetter)}${squareNumber + direction}`
+        squareLetter !== 'a' && `${directionLetterBy(-1, 1)}${squareNumber + direction}`,
+        squareLetter !== 'h' && `${directionLetterBy(1, 1)}${squareNumber + direction}`
     ];
 
     diagonals.forEach(diagonal => {
         if (diagonal) {
             const captureSquare = boardArray[8 - (squareNumber + direction)][boardLetters.indexOf(diagonal[0])];
-            if (includeOccupied || (captureSquare && isOpponentPiece(captureSquare, pieceColor))) {
-                moves.push(diagonal);
+            if (captureSquare && isOpponentPiece(captureSquare, aPieceColor)) {
+                if (!moves.includes(diagonal)) {  // Avoid duplicate entries
+                    moves.push(diagonal);
+                }
             }
         }
     });
@@ -350,52 +329,24 @@ function pawnMoves(piece, position, boardArray, includeOccupied = false) {
     return moves;
 }
 
-function rookMoves(position, pieceColor, boardArray, includeOccupied = false) {
-    const squareLetter = position[0];
-    const squareNumber = parseInt(position[1]);
-    let moves = [];
-    const directions = [
-        { letterDirection: 0, numberDirection: 1 }, { letterDirection: 0, numberDirection: -1 },
-        { letterDirection: 1, numberDirection: 0 }, { letterDirection: -1, numberDirection: 0 }
-    ];
-
-    directions.forEach(({ letterDirection, numberDirection }) => {
-        for (let i = 1; i <= 7; i++) {
-            const letter = directionLetterBy(letterDirection, i, squareLetter);
-            const number = directionNumberBy(numberDirection, i, squareNumber);
-            if (!letter || number < 1 || number > 8) break;
-
-            const square = `${letter}${number}`;
-            const piece = boardArray[8 - number][boardLetters.indexOf(letter)];
-
-            if (includeOccupied || addMoveIfOpponentOrEmpty(square, piece, pieceColor, moves)) {
-                moves.push(square);
-            }
-            if (piece && !includeOccupied) break;
-        }
-    });
-
-    return moves;
-}
-
-function bishopMoves(position, pieceColor, boardArray, includeOccupied = false) {
-    const squareLetter = position[0];
-    const squareNumber = parseInt(position[1]);
+function rookMoves(position, aPieceColor, boardArray) {
+    squareLetter = position[0];
+    squareNumber = parseInt(position[1]);
     let moves = [];
 
-    // Define diagonal directions: up-right, up-left, down-right, down-left
+    // Define directions for rook: up, down, right, left
     const directions = [
-        { letterDirection: 1, numberDirection: 1 },    // Up-Right
-        { letterDirection: -1, numberDirection: 1 },   // Up-Left
-        { letterDirection: 1, numberDirection: -1 },   // Down-Right
-        { letterDirection: -1, numberDirection: -1 }   // Down-Left
+        { letterDirection: 0, numberDirection: 1 },  // Up
+        { letterDirection: 0, numberDirection: -1 }, // Down
+        { letterDirection: 1, numberDirection: 0 },  // Right
+        { letterDirection: -1, numberDirection: 0 }  // Left
     ];
 
-    // Iterate over each diagonal direction
+    // Iterate over each direction
     directions.forEach(({ letterDirection, numberDirection }) => {
         for (let i = 1; i <= 7; i++) {
-            const letter = directionLetterBy(letterDirection, i, squareLetter);
-            const number = directionNumberBy(numberDirection, i, squareNumber);
+            const letter = directionLetterBy(letterDirection, i);
+            const number = directionNumberBy(numberDirection, i);
 
             // Ensure we're within board bounds
             if (!letter || number < 1 || number > 8) break;
@@ -403,82 +354,114 @@ function bishopMoves(position, pieceColor, boardArray, includeOccupied = false) 
             const square = `${letter}${number}`;
             const piece = boardArray[8 - number][boardLetters.indexOf(letter)];
 
-            // Add the square to moves and stop if there's a piece, unless includeOccupied is true
-            if (includeOccupied || addMoveIfOpponentOrEmpty(square, piece, pieceColor, moves)) {
-                moves.push(square);
-            }
-            if (piece && !includeOccupied) break;
+            if (!addMoveIfOpponentOrEmpty(square, piece, aPieceColor, moves)) break;
+        }
+    });
+    return moves;
+}
+
+function bishopMoves(position, aPieceColor, boardArray, coverMoves = false) {
+    squareLetter = position[0];
+    squareNumber = parseInt(position[1]);
+    let moves = [];
+
+    // Define diagonal directions: [up-right, up-left, down-right, down-left]
+    const directions = [
+        { letterDirection: 1, numberDirection: 1 },
+        { letterDirection: -1, numberDirection: 1 },
+        { letterDirection: 1, numberDirection: -1 },
+        { letterDirection: -1, numberDirection: -1 }
+    ];
+
+    // Iterate over each diagonal direction
+    directions.forEach(({ letterDirection, numberDirection }) => {
+        for (let i = 1; i <= 7; i++) {
+            const letter = directionLetterBy(letterDirection, i);
+            const number = directionNumberBy(numberDirection, i);
+
+            // Ensure we're within board bounds
+            if (!letter || number < 1 || number > 8) break;
+
+            const square = `${letter}${number}`;
+            const piece = boardArray[8 - number][boardLetters.indexOf(letter)];
+
+
+            if (!addMoveIfOpponentOrEmpty(square, piece, aPieceColor, moves, coverMoves)) break;
         }
     });
 
     return moves;
 }
 
-function knightMoves(position, pieceColor, boardArray, includeOccupied = false) {
-    const squareLetter = position[0];
-    const squareNumber = parseInt(position[1]);
+function knightMoves(position, aPieceColor, boardArray) {
+    squareLetter = position[0];
+    squareNumber = parseInt(position[1]);
     let moves = [];
+
     const directions = [
-        { numberDirection: -2, letterDirection: 1 }, { numberDirection: 1, letterDirection: 2 },
-        { numberDirection: 2, letterDirection: -1 }, { numberDirection: -1, letterDirection: -2 },
-        { numberDirection: -2, letterDirection: -1 }, { numberDirection: -1, letterDirection: 2 },
-        { numberDirection: 2, letterDirection: 1 }, { numberDirection: 1, letterDirection: -2 }
+        { numberDirection: -2, letterDirection: 1 }, // 2 down 1 right (Upright L)
+        { numberDirection: 1, letterDirection: 2 }, // 1 up 2 right (1 clockwise turn)
+        { numberDirection: 2, letterDirection: -1 }, // 2 up 1 left (Upside down L)
+        { numberDirection: -1, letterDirection: -2 }, // 1 down 2 left (1 counter clockwise turn)
+        { numberDirection: -2, letterDirection: -1 }, // 2 down 1 left (Backwards L)
+        { numberDirection: -1, letterDirection: 2 }, // 1 down 2 right (Backwards L, 1 clockwise turn)
+        { numberDirection: 2, letterDirection: 1 }, // 2 up 1 right (Backwards L, UpsideDown)
+        { numberDirection: 1, letterDirection: -2 } // 1 up 2 left (Backwards L, 1 counter clockwise turn)
     ];
 
     directions.forEach(({ numberDirection, letterDirection }) => {
-        const letter = directionLetterBy(letterDirection, 1, squareLetter);
-        const number = directionNumberBy(numberDirection, 1, squareNumber);
+        const letter = directionLetterBy(letterDirection, 1);
+        const number = directionNumberBy(numberDirection, 1);
+
         if (!letter || number < 1 || number > 8) return;
 
         const square = `${letter}${number}`;
         const piece = boardArray[8 - number][boardLetters.indexOf(letter)];
 
-        if (includeOccupied || addMoveIfOpponentOrEmpty(square, piece, pieceColor, moves)) {
-            moves.push(square);
-        }
+        addMoveIfOpponentOrEmpty(square, piece, aPieceColor, moves);
     });
 
     return moves;
 }
 
-function queenMoves(position, pieceColor, boardArray, includeOccupied = false) {
+function queenMoves(position, aPieceColor, boardArray) {
     let moves = [];
-    moves.push(...rookMoves(position, pieceColor, boardArray, includeOccupied));
-    moves.push(...bishopMoves(position, pieceColor, boardArray, includeOccupied));
+    moves.push(...rookMoves(position, aPieceColor, boardArray));
+    moves.push(...bishopMoves(position, aPieceColor, boardArray));
+
     return moves;
 }
 
-
-function kingMoves(position, pieceColor, boardArray, includeOccupied = false) {
-    const squareLetter = position[0];
-    const squareNumber = parseInt(position[1]);
+function kingMoves(position, aPieceColor, boardArray) {
+    squareLetter = position[0];
+    squareNumber = parseInt(position[1]);
     let moves = [];
+
     const directions = [
-        { letterDirection: 0, numberDirection: 1 }, { letterDirection: 1, numberDirection: 1 },
-        { letterDirection: 1, numberDirection: 0 }, { letterDirection: 1, numberDirection: -1 },
-        { letterDirection: 0, numberDirection: -1 }, { letterDirection: -1, numberDirection: -1 },
-        { letterDirection: -1, numberDirection: 0 }, { letterDirection: -1, numberDirection: 1 }
+        { letterDirection: 0, numberDirection: 1 }, // Up
+        { letterDirection: 1, numberDirection: 1 }, // Up-Right
+        { letterDirection: 1, numberDirection: 0 }, // Right
+        { letterDirection: 1, numberDirection: -1 }, // Down-Right
+        { letterDirection: 0, numberDirection: -1 }, // Down
+        { letterDirection: -1, numberDirection: -1 }, // Down-Left
+        { letterDirection: -1, numberDirection: 0 }, // Left
+        { letterDirection: -1, numberDirection: 1 } // Up-Left
     ];
 
     directions.forEach(({ letterDirection, numberDirection }) => {
-        const letter = directionLetterBy(letterDirection, 1, squareLetter);
-        const number = directionNumberBy(numberDirection, 1, squareNumber);
+        const letter = directionLetterBy(letterDirection, 1);
+        const number = directionNumberBy(numberDirection, 1);
+
         if (!letter || number < 1 || number > 8) return;
 
         const square = `${letter}${number}`;
         const piece = boardArray[8 - number][boardLetters.indexOf(letter)];
 
-        if (includeOccupied || addMoveIfOpponentOrEmpty(square, piece, pieceColor, moves)) {
-            moves.push(square);
-        }
+        addMoveIfOpponentOrEmpty(square, piece, aPieceColor, moves);
     });
 
     return moves;
 }
-
-// function getCoverMoves(piece, boardArray) {
-
-// }
 
 function movePiece(boardArray, selectedSquare, squareName) {
     let newBoardArray = boardArray.map(row => row.slice());
@@ -495,50 +478,7 @@ function movePiece(boardArray, selectedSquare, squareName) {
     return newBoardArray;
 }
 
-function isOurKingInCheck(currentPlayerInfo) {
-    const currentKing = player === 'white' ? 'WK' : 'BK';
-
-    const threats = currentPlayerInfo[currentPlayerInfo.length - 1].threats;
-
-    if (threats.includes(currentKing)) {
-        if (player === 'white') {
-            whiteKingInCheck = true;
-        } else {
-            blackKingInCheck = true;
-        }
-        return true;
-    }
-
-    return false;
-
-}
-
-function isOpponentKingInCheck(currentPlayerInfo) {
-    let attacks = currentPlayerInfo[currentPlayerInfo.length - 1].attacks;
-    let opponentKing = player === 'white' ? 'BK' : 'WK';
-
-
-    if (attacks.includes(opponentKing)) {
-        if (player === 'white') {
-            blackKingInCheck = true;
-        } else {
-            whiteKingInCheck = true;
-        }
-        return true;
-    }
-
-    return false;
-}
-
-function isBoardInCheck(currentPlayerInfo) {
-
-    let ourKing = isOurKingInCheck(currentPlayerInfo);
-    let opponentKing = isOpponentKingInCheck(currentPlayerInfo);
-
-    return ourKing || opponentKing;
-}
-
-function getPlayerPieceInfo(boardArray, pieceColor) {
+function getPlayerInfo(boardArray, pieceColor) {
     const currentColor = pieceColor;
     const opponentColor = pieceColor === 'white' ? 'black' : 'white';
 
@@ -576,15 +516,16 @@ function getPlayerPieceInfo(boardArray, pieceColor) {
     currentPlayerInfo.push(playerStatus);
 
     return currentPlayerInfo;
+
 }
 
-
 function createPieceInfo(piece, position, pieceColor, boardArray) {
-    const possibleMoves = getPossibleMoves(piece, position, boardArray);
+    const possibleMoves = getPossibleMoves(piece, position, boardArray, false);
     const moves = getMovesOnly(possibleMoves, boardArray);
-    const attacks = getCapturesOnly(pieceColor, possibleMoves, boardArray).map(square => squareHasPiece(square, boardArray));
+    const captures = getCapturesOnly(pieceColor, possibleMoves, boardArray);
+    const attacks = captures.map(square => squareHasPiece(square, boardArray));
     const attackedSquares = getAttackedSquares(piece, position, boardArray);
-    const coverMoves = getCoverMoves(piece, position);
+    const coverMoves = getCoverMoves(piece, position, boardArray).filter(square => (!moves.includes(square) && !captures.includes(square)));
 
     const pieceInfo = {
         piece: piece,
@@ -604,7 +545,7 @@ function getAttackedSquares(piece, position, boardArray) {
         // attackedSquares = getAllPawnThreats(piece, position)
         // should not need this function anymore
     } else {
-        attackedSquares = getPossibleMoves(piece, position, boardArray)
+        attackedSquares = getPossibleMoves(piece, position, boardArray, false)
     }
 
     return attackedSquares;
@@ -622,7 +563,6 @@ function sortSquares(squares) {
     });
 }
 
-
 function getMovesOnly(moves, boardArray) {
     return moves.filter(square => !squareHasPiece(square, boardArray));
 }
@@ -631,15 +571,27 @@ function getCapturesOnly(color, moves, boardArray) {
     return moves.filter(square => squareHasOpponentPiece(color, square, boardArray));
 }
 
-function addMoveIfOpponentOrEmpty(square, piece, clickedPieceColor, moves) {
+function updatePieceInfoMovesToSafemoves(pieceInfo, boardArray) {
+    let copy = pieceInfo.slice();
+    copy.pop();
+
+    copy.forEach(pieceInfo => {
+        const piece = pieceInfo.piece;
+        const position = pieceInfo.position;
+
+        const validMoves = getValidMoves(piece, position, boardArray, true, false);
+        pieceInfo.moves = validMoves;
+    });
+}
+
+function addMoveIfOpponentOrEmpty(square, piece, clickedPieceColor, moves, coverMoves = false) {
     if (!piece) {
         moves.push(square);
-        return true;
-    } else if (isOpponentPiece(piece, clickedPieceColor)) {
+        return true; // Continue moving in this direction
+    } else if (isOpponentPiece(piece, clickedPieceColor) || (coverMoves && !isOpponentPiece(piece, clickedPieceColor))) {
         moves.push(square);
-        return false;
-    }
-    return false;
+        return false; // Stop moving in this direction after capturing an opponent piece or if we're looking for cover moves
+    } return false; // Stop moving in this direction if it's our own piece and we're not looking for cover moves
 }
 
 function isOpponentPiece(piece, clickedPieceColor) {
@@ -660,6 +612,115 @@ function squareHasOpponentPiece(color, squareName, boardArray) {
     const piece = squareHasPiece(squareName, boardArray);
     return piece && getPieceColor(piece) !== color;
 }
+
+function getAllPiecesAttackingAPiece(aPiece, aPlayerInfo) {
+    let list = [];
+    aPlayerInfo.forEach(pieceInfo => {
+        const piece = pieceInfo.piece;
+        const attacks = pieceInfo.attacks;
+        (attacks.includes(aPiece)) && list.push(piece);
+    });
+
+    return list;
+}
+
+function isStalemate(playerInfo) {
+    if (stalemate) { return true }
+
+    if (!isBoardInCheck(playerInfo)) {
+        const info = playerInfo.slice();
+        info.pop();
+
+        let allMoves = getAllMovesForPlayer(info).flat();
+
+        if (allMoves.length === 0) {
+            console.log('Stalemate');
+            stalemate = true;
+            return true;
+        }
+    }
+
+    return false;
+
+}
+
+function isCheckmate(currentPlayerInfo, boardArray) {
+    if (checkmate) { return true }
+    if (blackKingInCheck || whiteKingInCheck) {
+
+        const opponentColor = player === 'white' ? 'black' : 'white';
+        const opponentKing = opponentColor === 'white' ? 'WK' : 'BK';
+
+        const opponentInfo = getPlayerInfo(boardArray, opponentColor);
+        updatePieceInfoMovesToSafemoves(opponentInfo, boardArray)
+
+        const currentPlayer = currentPlayerInfo.slice();
+        currentPlayer.pop();
+
+        let piecesAttackignOpponentKing = getAllPiecesAttackingAPiece(opponentKing, currentPlayer);
+
+
+        let piecesProtectingAttackPiece = [];
+        piecesAttackignOpponentKing.forEach(pieceAttackingKing => {
+            currentPlayer.forEach(pieceInfo => {
+                if (pieceInfo.coverMoves.includes(getPiecePosition(pieceAttackingKing, boardArray))) {
+                    piecesProtectingAttackPiece.push(pieceInfo.piece);
+                }
+            });
+        });
+
+        if (piecesProtectingAttackPiece.length !== 0) {
+            checkmate = true;
+            winner = player;
+            return true;
+        }
+
+    }
+
+    return false;
+}
+
+function isBoardInCheck(currentPlayerInfo, real = false) {
+    let ourKing = isOurKingInCheck(currentPlayerInfo, real);
+    let opponentKing = isOpponentKingInCheck(currentPlayerInfo, real);
+
+    return ourKing || opponentKing;
+}
+
+function isOurKingInCheck(currentPlayerInfo, real = false) {
+    const currentKing = player === 'white' ? 'WK' : 'BK';
+    const threats = currentPlayerInfo[currentPlayerInfo.length - 1].threats;
+
+    if (threats.includes(currentKing)) {
+        if (real) {
+            currentKing === 'WK' ? whiteKingInCheck = true : blackKingInCheck = true;
+        }
+        return true;
+    } else {
+        currentKing === 'WK' ? whiteKingInCheck = false : blackKingInCheck = false;
+    }
+
+    return false;
+}
+
+function isOpponentKingInCheck(currentPlayerInfo, real = false) {
+    let opponentKing = player === 'white' ? 'BK' : 'WK';
+    let attacks = currentPlayerInfo[currentPlayerInfo.length - 1].attacks;
+
+
+    if (attacks.includes(opponentKing)) {
+        if (real) {
+            opponentKing === 'WK' ? whiteKingInCheck = true : blackKingInCheck = true;
+        }
+        return true;
+    } else {
+        opponentKing === 'WK' ? whiteKingInCheck = false : blackKingInCheck = false;
+    }
+
+    return false;
+}
+
+
 
 function hideLegalMovesSquares() {
     const squares = document.querySelectorAll('.legal-move, .capture-hint');
@@ -684,8 +745,6 @@ function showLegalMovesSquares(squares, boardArray) {
 }
 
 function getPieceColor(piece) {
-
-
     if (piece[0] === 'W' || piece[0] === 'w') {
         return 'white';
     } else {
@@ -708,4 +767,24 @@ function getPieceType(piece) {
 
 function changeCurrentPlayer(currentPlayer) {
     return currentPlayer === 'white' ? 'black' : 'white';
+}
+// make funcction that take e4 or d5 and return it as a row and column number used in for loop
+function getColumnAndRow(square) {
+    const column = parseInt(boardLetters.indexOf(square[0]));
+    const row = parseInt(square[1]);
+    return [column, row];
+}
+
+function savePromotionPieces() {
+    const blackQueen = document.getElementById('BQ');
+    const blackRook = document.getElementById('BR1');
+    const blackBishop = document.getElementById('BB1');
+    const blackKnight = document.getElementById('BN1');
+
+    const whiteQueen = document.getElementById('WQ');
+    const whiteRook = document.getElementById('WR1');
+    const whiteBishop = document.getElementById('WB1');
+    const whiteKnight = document.getElementById('WN1');
+
+    promotionPieces.push(blackQueen, blackRook, blackBishop, blackKnight, whiteQueen, whiteRook, whiteBishop, whiteKnight);
 }
