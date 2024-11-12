@@ -10,8 +10,6 @@ let blackKingInCheck;
 let checkmate;
 let stalemate;
 let winner;
-let promotionPieces = [];
-let currentBoardArray = [];
 
 export function createStartingPositionBoardArray() {
     return [
@@ -29,15 +27,10 @@ export function createStartingPositionBoardArray() {
 let possibleMoves = [];
 let logOfMoves = [];
 
-function updateBoardArray(newBoardArray) {
-    currentBoardArray = newBoardArray;
-}
-
 export function handleSquareClick(clickedSquare, gameState) {
     if (checkmate || stalemate) return;
 
     const { selectedSquare, currentPlayer, boardArray, setSelectedSquare, setBoardArray, setCurrentPlayer, setHighlightedSquares } = gameState;
-    updateBoardArray(boardArray);
 
     const piece = squareHasPiece(clickedSquare, boardArray);
     const pieceColor = piece ? getPieceColor(piece) : null;
@@ -75,14 +68,14 @@ export function handleMoveExecution(clickedSquare, selectedSquare, boardArray, s
         possibleMoves = [];
     } else {
         setBoardArray(preMoveBoard);
-        updateBoardArray(preMoveBoard);
         const promotionBoard = promotePawnHandler(selectedPiece, clickedSquare, preMoveBoard);
         if (promotionBoard) {
             currentPlayerInfo = getPlayerInfo(promotionBoard, currentPlayer);
         }
     }
-    isOpponentKingInCheck(currentPlayer, currentPlayerInfo, true)
-    isCheckmate(preMoveBoard)
+    const isCheck = isOpponentKingInCheck(currentPlayer, currentPlayerInfo, true)
+    const isCheckMate = isCheckmate(preMoveBoard)
+    isCheck && !isCheckMate && console.log(`${opponent} king is in check`);
     isStalemate(opponentPlayerInfo, preMoveBoard)
 
     checkGameStatus(currentPlayerInfo);
