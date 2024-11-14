@@ -16,11 +16,12 @@
   -webkit-user-select: none; /* Safari */
   -moz-user-select: none; /* Firefox */
   -ms-user-select: none; /* Internet Explorer/Edge */
+  /* cursor: default; */
 }
 
-.chessboard img {
-  pointer-events: none; /* Prevent image dragging */
-}
+/* .chessboard img {
+  pointer-events: none; 
+} */
 
 /* Disable context menu on right-click */
 .chessboard {
@@ -30,4 +31,16 @@
   -moz-user-select: none; /* Firefox */
   -ms-user-select: none; /* Internet Explorer/Edge */
   user-select: none; /* Non-prefixed version, currently supported by Chrome, Edge, Opera and Firefox */
+}
+
+.custom-drag-image {
+  display: none;
+  position: absolute;
+  pointer-events: none;
+  width: 90px; /* Match this to your square size */
+  height: 90px; /* Match this to your square size */
+  background-size: cover; /* Ensure the background image covers the entire div */
+  background-position: center; /* Center the background image */
+  background-repeat: no-repeat; /* Prevent the background image from repeating */
+  opacity: 1;
 }

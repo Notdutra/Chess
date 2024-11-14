@@ -1,3 +1,4 @@
+import React from 'react';
 import './Piece.css';
 import BR from '../assets/pieces/BR.png';
 import BN from '../assets/pieces/BN.png';
@@ -17,40 +18,19 @@ const pieceImages = {
     WR, WN, WB, WQ, WK, WP
 };
 
-const pieceTypes = {
-    P: 'pawn',
-    R: 'rook',
-    N: 'knight',
-    B: 'bishop',
-    Q: 'queen',
-    K: 'king'
-};
-
-function Piece({ piece }) {
-    const pieceType = piece ? piece.slice(0, 2) : null;
-    const pieceImage = pieceType ? pieceImages[pieceType] : null;
-
-    function getPieceType(piece) {
-        if (!piece || !piece[1] || !pieceTypes[piece[1]]) return null;
-        return pieceTypes[piece[1]];
-    }
-
-    function getPieceData(piece) {
-        if (!piece || !piece[1] || !pieceTypes[piece[1]]) return null;
-        const color = piece[0] === 'W' ? 'white' : 'black';
-        const type = pieceTypes[piece[1]];
-        const number = piece.slice(2);
-        if (type === 'queen' || type === 'king') return color + '-' + type;
-        return `${color}-${type}-${number}`;
-    }
-
-    const pieceTypeName = getPieceType(piece);
-    const pieceData = getPieceData(piece);
+function Piece({ piece, onDragStart, onDragEnd }) {
+    const pieceImage = piece ? pieceImages[piece.slice(0, 2)] : null;
 
     return (
-        <div className="piece" id={piece} data-piece={pieceData} data-piece-type={pieceTypeName}>
-            {piece && <img src={pieceImage} alt={pieceData} />}
-        </div>
+        <div
+            className="piece"
+            id={piece}
+            data-piece={piece}
+            style={{ backgroundImage: `url(${pieceImage})` }}
+            draggable="true"
+            onDragStart={(e) => onDragStart(e, piece)}
+            onDragEnd={onDragEnd}
+        />
     );
 }
 

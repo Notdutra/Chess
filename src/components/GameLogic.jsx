@@ -1,4 +1,3 @@
-
 const boardLetters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 
 let squareLetter;
@@ -28,6 +27,8 @@ let possibleMoves = [];
 let logOfMoves = [];
 
 export function handleSquareClick(clickedSquare, gameState) {
+
+
     if (checkmate || stalemate) return;
 
     const { selectedSquare, currentPlayer, boardArray, setSelectedSquare, setBoardArray, setCurrentPlayer, setHighlightedSquares } = gameState;
@@ -35,10 +36,6 @@ export function handleSquareClick(clickedSquare, gameState) {
     const piece = squareHasPiece(clickedSquare, boardArray);
     const pieceColor = piece ? getPieceColor(piece) : null;
     player = currentPlayer;
-
-    if (checkGameStatus()) {
-        return;
-    };
 
     if (piece && pieceColor === currentPlayer && selectedSquare !== clickedSquare) {
         hideLegalMovesSquares();
@@ -73,10 +70,10 @@ export function handleMoveExecution(clickedSquare, selectedSquare, boardArray, s
             currentPlayerInfo = getPlayerInfo(promotionBoard, currentPlayer);
         }
     }
-    const isCheck = isOpponentKingInCheck(currentPlayer, currentPlayerInfo, true)
-    const isCheckMate = isCheckmate(preMoveBoard)
+    const isCheck = isOpponentKingInCheck(currentPlayer, currentPlayerInfo, true);
+    const isCheckMate = isCheckmate(preMoveBoard);
     isCheck && !isCheckMate && console.log(`${opponent} king is in check`);
-    isStalemate(opponentPlayerInfo, preMoveBoard)
+    isStalemate(opponentPlayerInfo, preMoveBoard);
 
     checkGameStatus(currentPlayerInfo);
     setCurrentPlayer(changeCurrentPlayer(currentPlayer));
@@ -90,7 +87,6 @@ function checkGameStatus() {
     if (checkmate) {
         console.log(`Checkmate ${winner} won`);
         endGame(checkmate);
-        return true;
     } else if (stalemate) {
         endGame('Stalemate');
         return true;
@@ -250,7 +246,7 @@ function promotePawnTo(clickedSquare, boardArray, newPiece = null) {
         case 'R': finalPiece = color[0] + 'R'; break;
         case 'B': finalPiece = color[0] + 'B'; break;
         case 'N': finalPiece = color[0] + 'N'; break;
-        default: finalPiece = color[0] + 'Q'; break;
+        default: finalPiece = color[0] + 'Q-PromotedPawn'; break;
     }
 
     const [row, column] = getRowAndColumn(clickedSquare);
@@ -584,6 +580,8 @@ function isOpponentPiece(piece, clickedPieceColor) {
 }
 
 function squareHasPiece(squareName, boardArray) {
+
+
     const [column, row] = squareName.split('');
     const columnNumber = boardLetters.indexOf(column);
     const rowNumber = 8 - row;
@@ -712,6 +710,8 @@ function getPieceColor(piece) {
 }
 
 function getPieceType(piece) {
+    if (piece.includes('PromotedPawn')) piece = piece.split('PromotedPawn')[0];
+
     const pieces = {
         'P': 'pawn',
         'R': 'rook',
@@ -733,4 +733,13 @@ function getRowAndColumn(square) {
     const row = 8 - parseInt(square[1]);
 
     return [row, column];
+}
+
+export function getLegalMoves(squareName, piece, boardArray, currentPlayer) {
+    const pieceColor = getPieceColor(piece);
+    if (pieceColor !== currentPlayer) {
+        return [];
+    }
+    const legalMoves = getValidMoves(piece, squareName, boardArray, true);
+    return legalMoves;
 }
