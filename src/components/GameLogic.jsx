@@ -9,6 +9,7 @@ let blackKingInCheck;
 let checkmate;
 let stalemate;
 let winner;
+let enPassantStatus = false;
 
 export function createStartingPositionBoardArray() {
     return [
@@ -41,6 +42,12 @@ export function handleSquareClick(clickedSquare, gameState) {
         hideLegalMovesSquares();
         setSelectedSquare(clickedSquare);
         possibleMoves = getValidMoves(piece, clickedSquare, boardArray, true);
+        if (enPassantStatus !== false && getPieceType(piece) === 'pawn') {
+            const [enPassantPiece, enPassantSquare, , attackSquare, attackPawn] = enPassantStatus;
+            if (attackPawn.includes(piece)) {
+                possibleMoves.push(attackSquare);
+            }
+        }
         if (possibleMoves.length !== 0) {
             showLegalMovesSquares(possibleMoves, boardArray);
         }
@@ -60,15 +67,21 @@ export function handleMoveExecution(clickedSquare, selectedSquare, boardArray, s
 
     let currentPlayerInfo = getPlayerInfo(preMoveBoard, currentPlayer);
 
+
     if (isOurKingInCheck(player, currentPlayerInfo, true)) {
         console.log('our king is in check');
         possibleMoves = [];
     } else {
         setBoardArray(preMoveBoard);
-        const promotionBoard = promotePawnHandler(selectedPiece, clickedSquare, preMoveBoard);
-        if (promotionBoard) {
-            currentPlayerInfo = getPlayerInfo(promotionBoard, currentPlayer);
+        if (getPieceType(selectedPiece) === 'pawn') {
+            const promotionBoard = promotePawnHandler(selectedPiece, clickedSquare, preMoveBoard);
+            if (promotionBoard) {
+                currentPlayerInfo = getPlayerInfo(promotionBoard, currentPlayer);
+            }
+            pawnEnPassantHandler(selectedPiece, clickedSquare, preMoveBoard);
+
         }
+
     }
     const isCheck = isOpponentKingInCheck(currentPlayer, currentPlayerInfo, true);
     const isCheckMate = isCheckmate(preMoveBoard);
@@ -80,8 +93,6 @@ export function handleMoveExecution(clickedSquare, selectedSquare, boardArray, s
     setSelectedSquare(null);
     hideLegalMovesSquares();
 }
-
-
 
 function checkGameStatus() {
     if (checkmate) {
@@ -114,16 +125,8 @@ function getAllSafeMovesForPlayer(pieceInfo, boardArray) {
     return allSafeMoves;
 }
 
-function getPiecePosition(piece, boardArray) {
-    if (piece && boardArray) {
-        for (let row = 0; row < 8; row++) {
-            for (let col = 0; col < 8; col++) {
-                if (boardArray[row][col] === piece) {
-                    return `${boardLetters[col]}${8 - row}`;
-                }
-            }
-        }
-    } return null;
+function getPiecePosition(piece) {
+    return document.getElementById(piece).parentElement.id;
 }
 
 function endGame(type) {
@@ -227,6 +230,64 @@ function getCoverMoves(piece, position, boardArray, allowPromotion = false) {
     }
 }
 
+function pawnEnPassantHandler(selectedPiece, toSquare, boardArray) {
+
+    if (enPassantStatus !== false) {
+        const [enPassantPiece, enPassantSquare, parentEl, attackSquare, attackPawn] = enPassantStatus;
+
+        if (attackPawn.includes(selectedPiece) && attackSquare === toSquare) {
+            const [targetRow, targetCol] = getRowAndColumn(enPassantSquare);
+            boardArray[8 - targetRow][targetCol] = '';
+            boardArray = movePiece(boardArray, getPiecePosition(selectedPiece), toSquare);
+        }
+    }
+
+    let attackPawn = [];
+
+    const color = getPieceColor(selectedPiece);
+
+    const fromSquare = getPiecePosition(selectedPiece);
+
+    const [fromRow, fromColumn] = getRowAndColumn(fromSquare);
+    const [toRow, toColumn] = getRowAndColumn(toSquare);
+
+    const startingRow = color === 'white' ? 2 : 7;
+    const doubleMoveRow = color === 'white' ? 4 : 5;
+
+    if (fromRow == startingRow && toRow == doubleMoveRow) {
+
+        const leftSquare = getLeftSquare(toSquare);
+        const rightSquare = getRightSquare(toSquare);
+
+        const leftPiece = document.getElementById(leftSquare)?.firstElementChild?.id || null;
+        const rightPiece = document.getElementById(rightSquare)?.firstElementChild?.id || null;
+
+        if (leftPiece) {
+            if (getPieceType(leftPiece) === 'pawn' && getPieceColor(leftPiece) !== color) {
+                attackPawn.push(leftPiece);
+            }
+        }
+
+        if (rightPiece) {
+            if (getPieceType(rightPiece) === 'pawn' && getPieceColor(rightPiece) !== color) {
+                attackPawn.push(rightPiece);
+            }
+        }
+
+    }
+
+    if (attackPawn.length > 0) {
+        const enPassantPieceParent = document.getElementById(selectedPiece)?.parentElement;
+        const attackSquare = color === 'white' ? getDownSquare(toSquare) : getUpSquare(toSquare);
+        enPassantStatus = [selectedPiece, toSquare, enPassantPieceParent, attackSquare, attackPawn];
+        return true;
+    } else {
+        enPassantStatus = false;
+    }
+
+    return false;
+}
+
 function promotePawnHandler(selectedPiece, clickedSquare, preMoveBoard) {
     if (selectedPiece && getPieceType(selectedPiece) === 'pawn') {
         if (player === 'white' && clickedSquare[1] === '8') {
@@ -248,9 +309,8 @@ function promotePawnTo(clickedSquare, boardArray, newPiece = null) {
         case 'N': finalPiece = color[0] + 'N'; break;
         default: finalPiece = color[0] + 'Q-PromotedPawn'; break;
     }
-
     const [row, column] = getRowAndColumn(clickedSquare);
-    boardArray[row][column] = finalPiece;
+    boardArray[8 - row][column] = finalPiece;
 
     return boardArray;
 }
@@ -542,7 +602,6 @@ function sortSquares(squares) {
 function getAllPawnThreats(piece, position) {
     const pieceColor = getPieceColor(piece);
     let [row, column] = getRowAndColumn(position);
-    row = 8 - row;
     const letter = boardLetters[column];
 
     const direction = pieceColor === 'white' ? 1 : -1;
@@ -730,9 +789,35 @@ function changeCurrentPlayer(currentPlayer) {
 
 function getRowAndColumn(square) {
     const column = square.charCodeAt(0) - 97
-    const row = 8 - parseInt(square[1]);
-
+    const row = parseInt(square[1]);
     return [row, column];
+}
+
+// these functions are all from whites perspective
+// when i have to implement black perspective where these are called i guess i will just reverse the row and column
+// or implement up, down, left, right checking current player color
+function getUpSquare(currentSquareName) {
+    if (currentSquareName[1] === '8') return null;
+    const [row, column] = getRowAndColumn(currentSquareName);
+    return boardLetters[column] + (row + 1);
+}
+
+function getDownSquare(currentSquareName) {
+    if (currentSquareName[1] === '1') return null;
+    const [row, column] = getRowAndColumn(currentSquareName);
+    return boardLetters[column] + (row - 1);
+}
+
+function getLeftSquare(currentSquareName) {
+    if (currentSquareName[0] === 'a') return null;
+    const [row, column] = getRowAndColumn(currentSquareName);
+    return boardLetters[column - 1] + row;
+}
+
+function getRightSquare(currentSquareName) {
+    if (currentSquareName[0] === 'h') return null;
+    const [row, column] = getRowAndColumn(currentSquareName);
+    return boardLetters[column + 1] + row;
 }
 
 export function getLegalMoves(squareName, piece, boardArray, currentPlayer) {
