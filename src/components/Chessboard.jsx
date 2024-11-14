@@ -59,10 +59,7 @@ function Chessboard() {
 
         if (selectedPieceRef.current) {
             if (pieceColor(selectedPieceRef.current) === currentPlayer) {
-
                 if (validSquaresRef.current.includes(squareName)) {
-                    console.log('hi there');
-
                     handleSquareClick(squareName);
                     selectedPieceRef.current = null;
                     return;
@@ -75,10 +72,6 @@ function Chessboard() {
         if (piece) {
 
             if (selectedPieceRef.current === null || selectedPieceRef.current !== piece) {
-                console.log('selected piece is null or selected piece is not equal to piece');
-                console.log('or clickede a valid square');
-
-
                 selectedPieceRef.current = piece;
                 handleSquareClick(squareName);
                 sameSquareDrop.current = 0;
@@ -92,7 +85,6 @@ function Chessboard() {
             setValidSquares(validSquares);
 
             if (pieceColor(selectedPieceRef.current) !== currentPlayer) {
-                console.log(`selected piece is ${selectedPieceRef.current} and piece is ${piece}`);
                 handleSquareClick(squareName);
             }
 
@@ -185,7 +177,6 @@ function Chessboard() {
         } else {
             sameSquareDrop.current++;
             if (validSquaresRef.current.includes(dropSquare)) {
-                console.log('valid move');
                 handleDrop(dropSquare);
                 document.body.style.cursor = 'default';
                 const img = dragImageRef.current;
