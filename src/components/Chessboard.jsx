@@ -39,8 +39,6 @@ function Chessboard() {
     }, [draggingFromSquareRef.current]);
 
     const handleSquareClick = (squareName) => {
-        console.log('yea i was called');
-
 
         const gameState = {
             selectedSquare,
