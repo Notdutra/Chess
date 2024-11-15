@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import './Chessboard.css';
 import Square from './Square';
 import { createStartingPositionBoardArray, handleSquareClick as handleSquareClickLogic } from './GameLogic';
+import soundManager from '../SoundManager';
 
 function Chessboard() {
     const [selectedSquare, setSelectedSquare] = useState(null);
@@ -17,6 +18,11 @@ function Chessboard() {
     const sameSquareDrop = useRef(0);
 
     const pieceColor = (piece) => piece[0] === 'W' ? 'white' : 'black';
+
+    useEffect(() => {
+        soundManager.loadSounds();
+        soundManager.setGlobalVolume(0.5);
+    }, []);
 
     useEffect(() => {
         sameSquareDrop.current = sameSquareDrop.current;
@@ -40,6 +46,7 @@ function Chessboard() {
 
     const handleSquareClick = (squareName) => {
 
+
         const gameState = {
             selectedSquare,
             currentPlayer,
@@ -62,22 +69,14 @@ function Chessboard() {
                     selectedPieceRef.current = null;
                     return;
                 }
-
             }
         }
-
-
         if (piece) {
-
             if (selectedPieceRef.current === null || selectedPieceRef.current !== piece) {
                 selectedPieceRef.current = piece;
                 handleSquareClick(squareName);
                 sameSquareDrop.current = 0;
             }
-
-
-
-
             const pieceElement = e.target;
             const validSquares = Array.from(document.querySelectorAll('.legal-move, .capture-hint')).map(square => square.id);
             setValidSquares(validSquares);
@@ -114,14 +113,11 @@ function Chessboard() {
 
         } else {
             if (selectedPieceRef.current && validSquaresRef.current.includes(squareName)) {
-
-
                 handleSquareClick(squareName);
             }
         }
 
     };
-
 
     const handleMouseMove = (e) => {
         const img = dragImageRef.current;
@@ -132,7 +128,6 @@ function Chessboard() {
     };
 
     const handleMouseUp = (e) => {
-
         let pieceSquareElement = document.getElementById(selectedPieceRef.current);
         let pieceHomeSquare = pieceSquareElement.parentElement.id;
 
@@ -140,7 +135,6 @@ function Chessboard() {
         const dropSquare = dropSquareElement.id;
 
         if (dropSquare === pieceHomeSquare && pieceColor(selectedPieceRef.current) === currentPlayer) {
-
             if (sameSquareDrop.current > 0) {
                 handleSquareClick(dropSquare);
                 sameSquareDrop.current = 0;

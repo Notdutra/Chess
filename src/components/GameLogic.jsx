@@ -1,3 +1,5 @@
+import soundManager from '../SoundManager';
+
 const boardLetters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 
 let squareLetter;
@@ -10,6 +12,7 @@ let checkmate;
 let stalemate;
 let winner;
 let enPassantStatus = false;
+
 
 export function createStartingPositionBoardArray() {
     return [
@@ -50,6 +53,10 @@ export function handleSquareClick(clickedSquare, gameState) {
         }
         if (possibleMoves.length !== 0) {
             showLegalMovesSquares(possibleMoves, boardArray);
+        } else {
+            soundManager.play('illegalMove');
+            setSelectedSquare(null);
+
         }
     } else if (selectedSquare && possibleMoves.length > 0 && possibleMoves.includes(clickedSquare)) {
         handleMoveExecution(clickedSquare, selectedSquare, boardArray, setBoardArray, setSelectedSquare, setCurrentPlayer, currentPlayer);
@@ -67,25 +74,37 @@ export function handleMoveExecution(clickedSquare, selectedSquare, boardArray, s
 
     let currentPlayerInfo = getPlayerInfo(preMoveBoard, currentPlayer);
 
+    setBoardArray(preMoveBoard);
+    let soundPlayed = false;
+    let isCheck = false;
 
-    if (isOurKingInCheck(player, currentPlayerInfo, true)) {
-        console.log('our king is in check');
-        possibleMoves = [];
-    } else {
-        setBoardArray(preMoveBoard);
-        if (getPieceType(selectedPiece) === 'pawn') {
-            const promotionBoard = promotePawnHandler(selectedPiece, clickedSquare, preMoveBoard);
-            if (promotionBoard) {
-                currentPlayerInfo = getPlayerInfo(promotionBoard, currentPlayer);
-            }
+    if (getPieceType(selectedPiece) === 'pawn') {
+        const promotionBoard = promotePawnHandler(selectedPiece, clickedSquare, preMoveBoard);
+        if (promotionBoard) {
+            currentPlayerInfo = getPlayerInfo(promotionBoard, currentPlayer);
             pawnEnPassantHandler(selectedPiece, clickedSquare, preMoveBoard);
-
         }
-
     }
-    const isCheck = isOpponentKingInCheck(currentPlayer, currentPlayerInfo, true);
+
+    isCheck = isOpponentKingInCheck(currentPlayer, currentPlayerInfo, true);
     const isCheckMate = isCheckmate(preMoveBoard);
-    isCheck && !isCheckMate && console.log(`${opponent} king is in check`);
+
+    if (isCheck && !isCheckMate) {
+        soundManager.play('check');
+        soundPlayed = true;
+    } else if (getPieceType(selectedPiece) === 'pawn' && (clickedSquare[1] === '8' || clickedSquare[1] === '1')) {
+        soundManager.play('promote');
+        soundPlayed = true;
+    }
+
+    if (!soundPlayed) {
+        if (squareHasPiece(clickedSquare, boardArray)) {
+            soundManager.play('capture');
+        } else {
+            soundManager.play(currentPlayer === 'white' ? 'playerMove' : 'opponentMove');
+        }
+    }
+
     isStalemate(opponentPlayerInfo, preMoveBoard);
 
     checkGameStatus(currentPlayerInfo);
@@ -94,11 +113,16 @@ export function handleMoveExecution(clickedSquare, selectedSquare, boardArray, s
     hideLegalMovesSquares();
 }
 
-function checkGameStatus() {
+function checkGameStatus(currentPlayerInfo) {
     if (checkmate) {
         console.log(`Checkmate ${winner} won`);
+        soundManager.play('check');
+        setTimeout(() => {
+            soundManager.play('gameEnd');
+        }, 100); // Short delay to ensure both sounds play almost simultaneously
         endGame(checkmate);
     } else if (stalemate) {
+        soundManager.play('gameEnd');
         endGame('Stalemate');
         return true;
     }
