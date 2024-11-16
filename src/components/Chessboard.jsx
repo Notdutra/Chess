@@ -1,12 +1,13 @@
 import React, { useEffect, useState, useRef } from 'react';
+import axios from 'axios';
 import './Chessboard.css';
 import Square from './Square';
-import { createStartingPositionBoardArray, handleSquareClick as handleSquareClickLogic } from './GameLogic';
+import { createStartingPositionBoardArray, handleSquareClick as handleSquareClickLogic, convertBoardArrayToFEN } from './GameLogic';
 import soundManager from '../SoundManager';
 
 function Chessboard() {
-    const [selectedSquare, setSelectedSquare] = useState(null);
-    const [currentPlayer, setCurrentPlayer] = useState('white');
+    const player = useRef('white');
+    const selectedSquare = useRef(null);
     const [boardArray, setBoardArray] = useState(createStartingPositionBoardArray());
     const [highlightedSquares, setHighlightedSquares] = useState([]);
     const [validSquares, setValidSquares] = useState([]);
@@ -16,8 +17,9 @@ function Chessboard() {
     const dragImageRef = useRef(null);
     const selectedPieceRef = useRef(null);
     const sameSquareDrop = useRef(0);
-
     const pieceColor = (piece) => piece[0] === 'W' ? 'white' : 'black';
+
+    const dificulty = 1;
 
     useEffect(() => {
         soundManager.loadSounds();
@@ -25,63 +27,94 @@ function Chessboard() {
     }, []);
 
     useEffect(() => {
-        sameSquareDrop.current = sameSquareDrop.current;
-    }, [sameSquareDrop.current]);
-
-    useEffect(() => {
-        selectedPieceRef.current = selectedPieceRef.current;
-    }, [selectedPieceRef.current]);
-
-    useEffect(() => {
         validSquaresRef.current = validSquares;
     }, [validSquares]);
 
     useEffect(() => {
-        draggingPieceRef.current = draggingPieceRef.current;
-    }, [draggingPieceRef.current]);
+    }, [boardArray]);
 
     useEffect(() => {
-        draggingFromSquareRef.current = draggingFromSquareRef.current;
-    }, [draggingFromSquareRef.current]);
+        if (player.current === 'black') {
+            fishy();
+        }
+    }, [player.current]);
 
     const handleSquareClick = (squareName) => {
-
-
         const gameState = {
-            selectedSquare,
-            currentPlayer,
+            selectedSquare: selectedSquare.current,
+            currentPlayer: player.current,
             boardArray,
-            setSelectedSquare,
+            setSelectedSquare: (newSelectedSquare) => { selectedSquare.current = newSelectedSquare },
             setBoardArray,
-            setCurrentPlayer,
-            setHighlightedSquares
+            setCurrentPlayer: (otherPlayer) => { player.current = otherPlayer },
+            setHighlightedSquares,
+            botPlaying: false
         };
         handleSquareClickLogic(squareName, gameState);
+    };
+
+    const fishy = async () => {
+
+        const board = convertBoardArrayToFEN(boardArray, player.current);
+
+        try {
+            const response = await axios.post(`https://stockfish.online/api/s/v2.php?fen=${board}&depth=${dificulty}`);
+            const { success, evaluation, mate, bestmove, continuation } = response.data;
+
+            if (success) {
+                const move = bestmove.split(' ')[1];
+                const fromSquare = move.slice(0, 2);
+                const toSquare = move.slice(2, 4);
+
+                const gameState = {
+                    selectedSquare: fromSquare,
+                    currentPlayer: player.current,
+                    boardArray,
+                    setSelectedSquare: (newSelectedSquare) => { selectedSquare.current = newSelectedSquare },
+                    setBoardArray,
+                    setCurrentPlayer: (otherPlayer) => { player.current = otherPlayer },
+                    setHighlightedSquares,
+                    botPlaying: true
+                };
+                handleSquareClickLogic(toSquare, gameState);
+
+            } else {
+                console.error('Stockfish API did not return a successful response');
+                console.error(response.data);
+                console.error('this is the current board:', board);
+                console.error('this is in the other format:', boardArray);
+            }
+        } catch (error) { console.error('Error calling Stockfish API:', error) };
+
     };
 
     const handleMouseDown = (e, piece, squareName) => {
         e.preventDefault();
 
         if (selectedPieceRef.current) {
-            if (pieceColor(selectedPieceRef.current) === currentPlayer) {
+            if (pieceColor(selectedPieceRef.current) === player.current && piece !== selectedPieceRef.current) {
                 if (validSquaresRef.current.includes(squareName)) {
                     handleSquareClick(squareName);
                     selectedPieceRef.current = null;
                     return;
                 }
+            } else {
+                selectedPieceRef.current = null;
             }
         }
+
         if (piece) {
             if (selectedPieceRef.current === null || selectedPieceRef.current !== piece) {
                 selectedPieceRef.current = piece;
                 handleSquareClick(squareName);
                 sameSquareDrop.current = 0;
             }
+
             const pieceElement = e.target;
             const validSquares = Array.from(document.querySelectorAll('.legal-move, .capture-hint')).map(square => square.id);
             setValidSquares(validSquares);
 
-            if (pieceColor(selectedPieceRef.current) !== currentPlayer) {
+            if (pieceColor(selectedPieceRef.current) !== player.current) {
                 handleSquareClick(squareName);
             }
 
@@ -110,13 +143,11 @@ function Chessboard() {
 
             document.addEventListener('mousemove', handleMouseMove);
             document.addEventListener('mouseup', handleMouseUp);
-
         } else {
             if (selectedPieceRef.current && validSquaresRef.current.includes(squareName)) {
                 handleSquareClick(squareName);
             }
         }
-
     };
 
     const handleMouseMove = (e) => {
@@ -129,12 +160,13 @@ function Chessboard() {
 
     const handleMouseUp = (e) => {
         let pieceSquareElement = document.getElementById(selectedPieceRef.current);
-        let pieceHomeSquare = pieceSquareElement.parentElement.id;
+        let pieceHomeSquare = pieceSquareElement?.parentElement?.id;
 
         const dropSquareElement = document.getElementById(e.target.id);
         const dropSquare = dropSquareElement.id;
 
-        if (dropSquare === pieceHomeSquare && pieceColor(selectedPieceRef.current) === currentPlayer) {
+        if (dropSquare === pieceHomeSquare && pieceColor(selectedPieceRef.current) === player.current) {
+
             if (sameSquareDrop.current > 0) {
                 handleSquareClick(dropSquare);
                 sameSquareDrop.current = 0;
@@ -176,7 +208,8 @@ function Chessboard() {
                 document.body.removeChild(img);
                 document.removeEventListener('mousemove', handleMouseMove);
                 document.removeEventListener('mouseup', handleMouseUp);
-                return
+                selectedPieceRef.current = null;
+                return;
             } else {
             }
             if (draggingPieceRef.current) {
@@ -203,12 +236,13 @@ function Chessboard() {
         }
         const gameState = {
             selectedSquare: fromSquare,
-            currentPlayer,
+            currentPlayer: player.current,
             boardArray,
-            setSelectedSquare,
+            setSelectedSquare: (newSelectedSquare) => { selectedSquare.current = newSelectedSquare },
             setBoardArray,
-            setCurrentPlayer,
-            setHighlightedSquares
+            setCurrentPlayer: (otherPlayer) => { player.current = otherPlayer },
+            setHighlightedSquares,
+            botPlaying: false
         };
         handleSquareClickLogic(toSquare, gameState);
         draggingPieceRef.current = null;
@@ -242,7 +276,7 @@ function Chessboard() {
                 const isHighlighted = highlightedSquares.includes(squareName);
                 const isLegalMove = highlightedSquares.includes(squareName) && !piece;
                 const isCaptureHint = highlightedSquares.includes(squareName) && piece;
-                return renderSquare(piece, squareName, color, squareName === selectedSquare, isHighlighted, isLegalMove, isCaptureHint);
+                return renderSquare(piece, squareName, color, squareName === selectedSquare.current, isHighlighted, isLegalMove, isCaptureHint);
             });
         });
     };
