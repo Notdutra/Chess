@@ -50,7 +50,7 @@ class SoundManager {
         });
 
         for (const [name, path] of soundEntries) {
-            if (name === 'playerMove') continue; // Skip preloaded sound
+            if (name === 'playerMove') continue;
             try {
                 const response = await fetch(path);
                 const arrayBuffer = await response.arrayBuffer();
@@ -58,14 +58,13 @@ class SoundManager {
                 this.sounds[name] = audioBuffer;
                 this.gainNodes[name] = this.audioContext.createGain();
                 this.gainNodes[name].gain.value = this.globalVolume;
-                // console.log(`${name} sound loaded`); // Remove debug log
             } catch (error) {
                 console.error(`Failed to load sound "${name}" from ${path}:`, error);
             }
         }
     }
 
-    async play(sound, volume = 1) {
+    async play(sound, volume = 1.5) {
         // console.log(`Playing sound "${sound}"`); // Remove debug log
 
         const audioBuffer = this.sounds[sound];

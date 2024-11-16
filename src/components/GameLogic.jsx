@@ -8,11 +8,16 @@ let player;
 
 let whiteKingInCheck;
 let blackKingInCheck;
+
 let checkmate;
 let stalemate;
+
 let winner;
+
 let enPassantStatus = false;
 
+let moveHistory = [];
+let undoneMoves = [];
 
 export function createStartingPositionBoardArray() {
     return [
@@ -28,35 +33,44 @@ export function createStartingPositionBoardArray() {
 }
 
 let possibleMoves = [];
-let logOfMoves = [];
 
 export function handleSquareClick(clickedSquare, gameState) {
-
-
     if (checkmate || stalemate) return;
 
+
+
     const { selectedSquare, currentPlayer, boardArray, setSelectedSquare, setBoardArray, setCurrentPlayer, setHighlightedSquares } = gameState;
+
+    console.log(boardArray);
+
 
     const piece = squareHasPiece(clickedSquare, boardArray);
     const pieceColor = piece ? getPieceColor(piece) : null;
     player = currentPlayer;
 
+    const currentPlayerInfo = getPlayerInfo(boardArray, currentPlayer);
+
+    let check = isBoardInCheck(currentPlayer, currentPlayerInfo, true);
+
+
     if (piece && pieceColor === currentPlayer && selectedSquare !== clickedSquare) {
+        const currentPiece = getPieceType(piece);
         hideLegalMovesSquares();
         setSelectedSquare(clickedSquare);
-        possibleMoves = getValidMoves(piece, clickedSquare, boardArray, true);
-        if (enPassantStatus !== false && getPieceType(piece) === 'pawn') {
-            const [enPassantPiece, enPassantSquare, , attackSquare, attackPawn] = enPassantStatus;
+        possibleMoves = getValidMoves(piece, clickedSquare, boardArray, false);
+        if (enPassantStatus !== false && currentPiece === 'pawn') {
+            const [, , , attackSquare, attackPawn] = enPassantStatus;
             if (attackPawn.includes(piece)) {
                 possibleMoves.push(attackSquare);
             }
+        } else if (currentPiece === 'king') {
+            castleKing(boardArray);
         }
         if (possibleMoves.length !== 0) {
             showLegalMovesSquares(possibleMoves, boardArray);
-        } else {
+        } else if (player === 'white' && whiteKingInCheck || player === 'black' && blackKingInCheck) {
             soundManager.play('illegalMove');
             setSelectedSquare(null);
-
         }
     } else if (selectedSquare && possibleMoves.length > 0 && possibleMoves.includes(clickedSquare)) {
         handleMoveExecution(clickedSquare, selectedSquare, boardArray, setBoardArray, setSelectedSquare, setCurrentPlayer, currentPlayer);
@@ -69,8 +83,22 @@ export function handleSquareClick(clickedSquare, gameState) {
 export function handleMoveExecution(clickedSquare, selectedSquare, boardArray, setBoardArray, setSelectedSquare, setCurrentPlayer, currentPlayer) {
     const selectedPiece = squareHasPiece(selectedSquare, boardArray);
     const opponent = currentPlayer === 'white' ? 'black' : 'white';
-    const preMoveBoard = movePiece(boardArray, selectedSquare, clickedSquare);
+    let preMoveBoard = movePiece(boardArray, selectedSquare, clickedSquare);
     const opponentPlayerInfo = getPlayerInfo(preMoveBoard, opponent);
+    // Save the current game state before making the move
+    moveHistory.push({
+        boardArray: JSON.parse(JSON.stringify(boardArray)),
+        currentPlayer,
+        selectedPiece,
+        origin: selectedSquare,
+        destination: clickedSquare,
+        whiteKingInCheck,
+        blackKingInCheck,
+        winner
+    });
+
+    // Clear the undone moves stack since a new move is made
+    undoneMoves = [];
 
     let currentPlayerInfo = getPlayerInfo(preMoveBoard, currentPlayer);
 
@@ -81,8 +109,21 @@ export function handleMoveExecution(clickedSquare, selectedSquare, boardArray, s
     if (getPieceType(selectedPiece) === 'pawn') {
         const promotionBoard = promotePawnHandler(selectedPiece, clickedSquare, preMoveBoard);
         if (promotionBoard) {
+            setBoardArray(promotionBoard);
             currentPlayerInfo = getPlayerInfo(promotionBoard, currentPlayer);
-            pawnEnPassantHandler(selectedPiece, clickedSquare, preMoveBoard);
+        }
+        pawnEnPassantHandler(selectedPiece, clickedSquare, preMoveBoard);
+    } else if (getPieceType(selectedPiece) === 'king') {
+        const castleSquares = ['c1', 'g1', 'c8', 'g8'];
+        const rook = ['WR1', 'WR2', 'BR1', 'BR2'];
+        const rookDestination = ['d1', 'f1', 'd8', 'f8'];
+        if (castleSquares.includes(clickedSquare)) {
+            soundManager.play('castle');
+            soundPlayed = true;
+            const rookIndex = castleSquares.indexOf(clickedSquare);
+            const rookSquare = getPiecePosition(rook[rookIndex]);
+            const rookDestinationSquare = rookDestination[rookIndex];
+            setBoardArray(movePiece(preMoveBoard, rookSquare, rookDestinationSquare))
         }
     }
 
@@ -111,6 +152,134 @@ export function handleMoveExecution(clickedSquare, selectedSquare, boardArray, s
     setCurrentPlayer(changeCurrentPlayer(currentPlayer));
     setSelectedSquare(null);
     hideLegalMovesSquares();
+}
+
+function castleKing(boardArray) {
+    const king = player === 'white' ? 'WK' : 'BK';
+    const kingSquare = getPiecePosition(king);
+    const castleStatus = canKingCastle(king);
+
+    if (castleStatus.canCastle) {
+        const [queenSide, kingSide] = castleStatus.sides;
+
+        const squareIsEmptyAndSafe = (square) => {
+            const piece = squareHasPiece(square, boardArray);
+            return !piece && isMoveSafe(king, boardArray, kingSquare, square, false);
+        }
+
+        if (queenSide) {
+            const knightSquare = player === 'white' ? 'b1' : 'b8';
+            const bishopSquare = player === 'white' ? 'c1' : 'c8';
+            const queenSquare = player === 'white' ? 'd1' : 'd8';
+
+            let queenSideSquares = [knightSquare, bishopSquare, queenSquare];
+            let queenSidePieces = queenSideSquares.map(square => squareIsEmptyAndSafe(square));
+
+            if (queenSidePieces.every(piece => piece)) {
+                const kingDestination = player === 'white' ? 'c1' : 'c8';
+                possibleMoves.push(kingDestination);
+            }
+
+        }
+
+        if (kingSide) {
+            const bishopSquare = player === 'white' ? 'f1' : 'f8';
+            const knightSquare = player === 'white' ? 'g1' : 'g8';
+
+            let kingSideSquares = [bishopSquare, knightSquare];
+            let kingSidePieces = kingSideSquares.map(square => squareIsEmptyAndSafe(square));
+
+            if (kingSidePieces.every(piece => piece)) {
+                const kingDestination = player === 'white' ? 'g1' : 'g8';
+                possibleMoves.push(kingDestination);
+            }
+        }
+    }
+}
+
+function canKingCastle(king) {
+    if (king === 'WK' && whiteKingInCheck || king === 'BK' && blackKingInCheck) {
+        return { canCastle: false, sides: [false, false] };
+    }
+
+    const kingMoves = moveHistory.some(move => move.selectedPiece === king);
+    if (kingMoves) {
+        return { canCastle: false, sides: [false, false] };
+    }
+
+    const rooks = player === 'white' ? ['WR1', 'WR2'] : ['BR1', 'BR2'];
+    const rookSides = ['queen side', 'king side'];
+
+    let canCastleSides = [];
+
+    for (let i = 0; i < rooks.length; i++) {
+        const rookMoves = moveHistory.some(move => move.selectedPiece === rooks[i]);
+        if (!rookMoves) {
+            canCastleSides.push(rookSides[i]);
+        }
+    }
+
+    // Check if both rooks have moved
+    if (canCastleSides.length === 0) {
+        return { canCastle: false, sides: [] };
+    }
+
+    // Check if only one rook has moved
+    if (canCastleSides.length === 1) {
+        if (canCastleSides[0] === 'queen side') {
+            return { canCastle: true, sides: [true, false] };
+        } else {
+            return { canCastle: true, sides: [false, true] };
+        }
+    }
+
+    return { canCastle: true, sides: canCastleSides };
+}
+
+export function undoLastMove(setBoardArray, setCurrentPlayer, setSelectedSquare) {
+    if (moveHistory.length === 0) return;
+
+    const lastMove = moveHistory.pop();
+    undoneMoves.push({
+        boardArray: JSON.parse(JSON.stringify(lastMove.boardArray)),
+        currentPlayer: lastMove.currentPlayer,
+        selectedPiece: lastMove.selectedPiece,
+        origin: lastMove.origin,
+        destination: lastMove.destination,
+        whiteKingInCheck: lastMove.whiteKingInCheck,
+        blackKingInCheck: lastMove.blackKingInCheck,
+        winner: lastMove.winner
+    });
+
+    setBoardArray(lastMove.boardArray);
+    setCurrentPlayer(lastMove.currentPlayer);
+    setSelectedSquare(lastMove.origin);
+    whiteKingInCheck = lastMove.whiteKingInCheck;
+    blackKingInCheck = lastMove.blackKingInCheck;
+    winner = lastMove.winner;
+}
+
+export function redoLastMove(setBoardArray, setCurrentPlayer, setSelectedSquare) {
+    if (undoneMoves.length === 0) return;
+
+    const redoMove = undoneMoves.pop();
+    moveHistory.push({
+        boardArray: JSON.parse(JSON.stringify(redoMove.boardArray)),
+        currentPlayer: redoMove.currentPlayer,
+        selectedPiece: redoMove.selectedPiece,
+        origin: redoMove.origin,
+        destination: redoMove.destination,
+        whiteKingInCheck: redoMove.whiteKingInCheck,
+        blackKingInCheck: redoMove.blackKingInCheck,
+        winner: redoMove.winner
+    });
+
+    setBoardArray(redoMove.boardArray);
+    setCurrentPlayer(redoMove.currentPlayer);
+    setSelectedSquare(redoMove.origin);
+    whiteKingInCheck = redoMove.whiteKingInCheck;
+    blackKingInCheck = redoMove.blackKingInCheck;
+    winner = redoMove.winner;
 }
 
 function checkGameStatus(currentPlayerInfo) {
@@ -165,29 +334,18 @@ function endGame(type) {
 function isMoveSafe(piece, boardArray, from, to, real = false) {
     const color = getPieceColor(piece);
 
-    // we need to get moves that leave the king out of check, or get king out of check
-
     // Simulate the move
     let newBoardArray = movePiece(boardArray, from, to);
-    // in this newBoardArray, is ourKing in check? or (still in check?)
+    // Check if our king is in check after the move
     const simulatedMovesPieceInfoCurrent = getPlayerInfo(newBoardArray, color);
     let ourKingInCheck = isOurKingInCheck(color, simulatedMovesPieceInfoCurrent, real);
-
-
-    // if (ourKingInCheck) {
-    //     console.log(`${color} king is in check at ${to}`);
-    // } else {
-    //     console.log(`${color} king is safe at ${to}`);
-    // }
 
     return !ourKingInCheck;
 }
 
 function getValidMoves(piece, position, boardArray, real = false) {
     const possibleMoves = getPossibleMoves(piece, position, boardArray, false);
-
     let safeMoves = possibleMoves.filter(move => isMoveSafe(piece, boardArray, position, move, real));
-
     return safeMoves;
 }
 
@@ -663,8 +821,6 @@ function isOpponentPiece(piece, clickedPieceColor) {
 }
 
 function squareHasPiece(squareName, boardArray) {
-
-
     const [column, row] = squareName.split('');
     const columnNumber = boardLetters.indexOf(column);
     const rowNumber = 8 - row;
@@ -733,18 +889,15 @@ function isBoardInCheck(color, currentPlayerInfo, real = false) {
 
 function isOurKingInCheck(color, currentPlayerInfo, real = false) {
     const currentKing = color === 'white' ? 'WK' : 'BK';
-
     const threats = currentPlayerInfo[currentPlayerInfo.length - 1].threats;
 
-    if (threats.includes(currentKing)) {
-        if (real) {
-            currentKing === 'WK' ? whiteKingInCheck = true : blackKingInCheck = true;
-            return true;
-        }
+    if (!threats.includes(currentKing)) {
+        if (real) currentKing === 'WK' ? whiteKingInCheck = false : blackKingInCheck = false;
+        return false;
+    } else {
+        if (real) currentKing === 'WK' ? whiteKingInCheck = true : blackKingInCheck = true;
         return true;
     }
-
-    return false;
 }
 
 function isOpponentKingInCheck(color, currentPlayerInfo, real = false) {
@@ -752,14 +905,13 @@ function isOpponentKingInCheck(color, currentPlayerInfo, real = false) {
     let opponentKing = color === 'white' ? 'BK' : 'WK';
     let attacks = currentPlayerInfo[currentPlayerInfo.length - 1].attacks;
 
-    if (attacks.includes(opponentKing)) {
-        if (real) {
-            opponentKing === 'WK' ? whiteKingInCheck = true : blackKingInCheck = true;
-            return true;
-        }
+    if (!attacks.includes(opponentKing)) {
+        if (real) opponentKing === 'BK' ? blackKingInCheck = false : whiteKingInCheck = false;
+        return false;
+    } else {
+        if (real) opponentKing === 'BK' ? blackKingInCheck = true : whiteKingInCheck = true;
         return true;
     }
-    return false;
 }
 
 function hideLegalMovesSquares() {
