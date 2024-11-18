@@ -18,8 +18,6 @@
 }
 
 .square {
-  height: 90px;
-  width: 90px;
   position: relative; /* Ensure the pseudo-elements are positioned correctly */
 }
 
@@ -38,30 +36,28 @@
 }
 
 .legal-move.light::before {
+  background-color: rgb(202, 203, 179); /* Circle color for light square */
   content: "";
   position: absolute;
-  width: 30px;
-  height: 30px;
-  background-color: rgb(202, 203, 179); /* Circle color for light square */
+  width: 33.33%;
+  height: 33.33%;
   border-radius: 50%;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  /* pointer-events: none; */
   z-index: 1;
 }
 
 .legal-move.dark::before {
+  background-color: rgb(99, 128, 70); /* Circle color for dark square */
   content: "";
   position: absolute;
-  width: 30px;
-  height: 30px;
-  background-color: rgb(99, 128, 70); /* Circle color for dark square */
+  width: 33.33%;
+  height: 33.33%;
   border-radius: 50%;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  /* pointer-events: none; */
   z-index: 1;
 }
 
@@ -71,7 +67,8 @@
   width: 100%; /* Adjust width and height as needed */
   height: 100%;
   border-radius: 50%;
-  border: 8px solid var(--color-transparent-black-14); /* Outline color and thickness */
+  box-sizing: border-box;
+  border: var(--border-width) solid rgba(0, 0, 0, 0.14); /* Dynamic border width */
   z-index: 5;
   top: 0;
   left: 0;

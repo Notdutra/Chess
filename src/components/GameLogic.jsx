@@ -77,7 +77,7 @@ export function handleSquareClick(clickedSquare, gameState) {
         hideLegalMovesSquares();
     }
 
-    highlightLastPlayed();
+    // highlightLastPlayed();
 }
 
 export function handleMoveExecution(clickedSquare, selectedSquare, boardArray, setBoardArray, setSelectedSquare, setCurrentPlayer, currentPlayer, botPlaying = false) {
@@ -160,7 +160,7 @@ export function handleMoveExecution(clickedSquare, selectedSquare, boardArray, s
     setSelectedSquare(null);
     hideLegalMovesSquares();
 
-    highlightLastPlayed();
+    // highlightLastPlayed();
 }
 
 function kingCastlingLogic(king) {
@@ -929,7 +929,7 @@ function showLegalMovesSquares(squares, boardArray) {
         if (square) {
             const pieceElement = squareHasPiece(squareName, boardArray);
             if (pieceElement) {
-                square.classList.add('capture-hint');
+                square.classList.add('capture-hint');                
             } else {
                 square.classList.add('legal-move');
             }

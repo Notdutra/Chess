@@ -1,6 +1,9 @@
 import React, { useEffect, useState, useRef } from 'react';
 import axios from 'axios';
 import './Chessboard.css';
+import './Piece.css';
+import './Square.css';
+
 import Square from './Square';
 import { createStartingPositionBoardArray, handleSquareClick as handleSquareClickLogic, convertBoardArrayToFEN } from './GameLogic';
 import soundManager from '../SoundManager';
@@ -20,6 +23,7 @@ function Chessboard() {
     const pieceColor = (piece) => piece[0] === 'W' ? 'white' : 'black';
 
     const dificulty = 1;
+    const [squaresize, setSquareSize] = useState(document.querySelector('.square')?.clientWidth);
 
     useEffect(() => {
         soundManager.loadSounds();
@@ -31,7 +35,17 @@ function Chessboard() {
     }, [validSquares]);
 
     useEffect(() => {
-    }, [boardArray]);
+        const handleResize = () => {
+            setSquareSize(document.querySelector('.square')?.clientWidth);
+        };
+
+        window.addEventListener('resize', handleResize);
+        handleResize(); // Initial call to set the size
+
+        return () => {
+            window.removeEventListener('resize', handleResize);
+        };
+    }, []);
 
     useEffect(() => {
         if (player.current === 'black') {
@@ -66,17 +80,19 @@ function Chessboard() {
                 const fromSquare = move.slice(0, 2);
                 const toSquare = move.slice(2, 4);
 
-                const gameState = {
-                    selectedSquare: fromSquare,
-                    currentPlayer: player.current,
-                    boardArray,
-                    setSelectedSquare: (newSelectedSquare) => { selectedSquare.current = newSelectedSquare },
-                    setBoardArray,
-                    setCurrentPlayer: (otherPlayer) => { player.current = otherPlayer },
-                    setHighlightedSquares,
-                    botPlaying: true
-                };
-                handleSquareClickLogic(toSquare, gameState);
+                setTimeout(() => {
+                    const gameState = {
+                        selectedSquare: fromSquare,
+                        currentPlayer: player.current,
+                        boardArray,
+                        setSelectedSquare: (newSelectedSquare) => { selectedSquare.current = newSelectedSquare },
+                        setBoardArray,
+                        setCurrentPlayer: (otherPlayer) => { player.current = otherPlayer },
+                        setHighlightedSquares,
+                        botPlaying: true
+                    };
+                    handleSquareClickLogic(toSquare, gameState);
+                }, 500);
 
             } else {
                 console.error('Stockfish API did not return a successful response');
@@ -98,9 +114,7 @@ function Chessboard() {
                     selectedPieceRef.current = null;
                     return;
                 }
-            } else {
-                selectedPieceRef.current = null;
-            }
+            } else { selectedPieceRef.current = null; }
         }
 
         if (piece) {
@@ -124,16 +138,16 @@ function Chessboard() {
             draggingPieceRef.current = piece;
             draggingFromSquareRef.current = squareName;
 
+            const computedStyle = window.getComputedStyle(pieceElement?.parentElement);
+
+
             // Create a custom drag image
             const img = dragImageRef.current;
+            img.className = 'custom-drag-image';
             img.style.backgroundImage = e.target.style.backgroundImage;
             img.style.display = 'block';
-            img.style.zIndex = '9999';
-            img.style.width = '90px'; // Match this to your square size
-            img.style.height = '90px'; // Match this to your square size
-            img.style.opacity = '1';
-            img.style.position = 'absolute';
-            img.style.pointerEvents = 'none';
+            img.style.width = computedStyle.height
+            img.style.height = computedStyle.height
             document.body.appendChild(img);
 
             if (img && e.clientX && e.clientY) {
@@ -263,6 +277,7 @@ function Chessboard() {
             isHighlighted={isHighlighted}
             isLegalMove={isLegalMove}
             isCaptureHint={isCaptureHint}
+            squaresize={squaresize} // Pass the square size as a prop
         />
     );
 
@@ -282,12 +297,14 @@ function Chessboard() {
     };
 
     return (
-        <div className="chessboard" onContextMenu={(e) => e.preventDefault()}>
-            {renderBoard(boardArray)}
-            <div
-                ref={dragImageRef}
-                className="custom-drag-image"
-            />
+        <div className="container">
+            <div className="chessboard" onContextMenu={(e) => e.preventDefault()}>
+                {renderBoard(boardArray)}
+                <div
+                    ref={dragImageRef}
+                    className="custom-drag-image"
+                />
+            </div>
         </div>
     );
 }
