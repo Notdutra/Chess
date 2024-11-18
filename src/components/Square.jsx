@@ -2,7 +2,7 @@ import React from 'react';
 import './Square.css';
 import Piece from './Piece';
 
-function Square({ squareName, color, piece, onMouseMove, onMouseDown, onDragStart, onDragEnd, onDrop, isSelected, isHighlighted, isLegalMove, isCaptureHint }) {
+function Square({ squareName, color, piece, onMouseMove, onMouseDown, onDragStart, onDragEnd, onDrop, isSelected, isHighlighted, isLegalMove, isCaptureHint, squaresize }) {
     const className = `${color} square ${isSelected ? 'highlight' : ''} ${isLegalMove ? 'legal-move' : ''} ${isCaptureHint ? 'capture-hint' : ''}`;
 
     const handleDragOver = (e) => {
@@ -17,6 +17,7 @@ function Square({ squareName, color, piece, onMouseMove, onMouseDown, onDragStar
             onMouseDown={onMouseDown}
             onDragOver={handleDragOver}
             onDrop={(e) => onDrop(e, squareName)}
+            style={{ '--border-width': `${(squaresize * 8.889) / 100}px` }} // Set the border width as a CSS variable
         >
             {piece && <Piece
                 piece={piece}
