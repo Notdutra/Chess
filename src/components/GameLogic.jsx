@@ -929,7 +929,7 @@ function showLegalMovesSquares(squares, boardArray) {
         if (square) {
             const pieceElement = squareHasPiece(squareName, boardArray);
             if (pieceElement) {
-                square.classList.add('capture-hint');                
+                square.classList.add('capture-hint');
             } else {
                 square.classList.add('legal-move');
             }
