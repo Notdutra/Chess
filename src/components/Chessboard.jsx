@@ -21,6 +21,7 @@ function Chessboard() {
     const selectedPieceRef = useRef(null);
     const sameSquareDrop = useRef(0);
     const pieceColor = (piece) => piece[0] === 'W' ? 'white' : 'black';
+    const [hoveredSquare, setHoveredSquare] = useState(null);
 
     const dificulty = 1;
     const [squaresize, setSquareSize] = useState(document.querySelector('.square')?.clientWidth);
@@ -53,6 +54,15 @@ function Chessboard() {
         }
     }, [player.current]);
 
+    useEffect(() => {
+        if (hoveredSquare) {
+            const squareElement = document.getElementById(hoveredSquare);
+            if (squareElement) {
+                squareElement.classList.add('hover-square');
+            }
+        }
+    }, [hoveredSquare]);
+
     const handleSquareClick = (squareName) => {
         const gameState = {
             selectedSquare: selectedSquare.current,
@@ -68,12 +78,11 @@ function Chessboard() {
     };
 
     const fishy = async () => {
-
         const board = convertBoardArrayToFEN(boardArray, player.current);
 
         try {
             const response = await axios.post(`https://stockfish.online/api/s/v2.php?fen=${board}&depth=${dificulty}`);
-            const { success, evaluation, mate, bestmove, continuation } = response.data;
+            const { success, bestmove } = response.data;
 
             if (success) {
                 const move = bestmove.split(' ')[1];
@@ -93,15 +102,13 @@ function Chessboard() {
                     };
                     handleSquareClickLogic(toSquare, gameState);
                 }, 500);
-
             } else {
                 console.error('Stockfish API did not return a successful response');
                 console.error(response.data);
-                console.error('this is the current board:', board);
-                console.error('this is in the other format:', boardArray);
             }
-        } catch (error) { console.error('Error calling Stockfish API:', error) };
-
+        } catch (error) {
+            console.error('Error calling Stockfish API:', error);
+        }
     };
 
     const handleMouseDown = (e, piece, squareName) => {
@@ -114,10 +121,14 @@ function Chessboard() {
                     selectedPieceRef.current = null;
                     return;
                 }
-            } else { selectedPieceRef.current = null; }
+            } else {
+                selectedPieceRef.current = null;
+            }
         }
 
         if (piece) {
+            setHoveredSquare(squareName);
+
             if (selectedPieceRef.current === null || selectedPieceRef.current !== piece) {
                 selectedPieceRef.current = piece;
                 handleSquareClick(squareName);
@@ -140,14 +151,13 @@ function Chessboard() {
 
             const computedStyle = window.getComputedStyle(pieceElement?.parentElement);
 
-
             // Create a custom drag image
             const img = dragImageRef.current;
             img.className = 'custom-drag-image';
             img.style.backgroundImage = e.target.style.backgroundImage;
             img.style.display = 'block';
-            img.style.width = computedStyle.height
-            img.style.height = computedStyle.height
+            img.style.width = computedStyle.height;
+            img.style.height = computedStyle.height;
             document.body.appendChild(img);
 
             if (img && e.clientX && e.clientY) {
@@ -157,14 +167,11 @@ function Chessboard() {
 
             document.addEventListener('mousemove', handleMouseMove);
             document.addEventListener('mouseup', handleMouseUp);
-        } else {
-            if (selectedPieceRef.current && validSquaresRef.current.includes(squareName)) {
-                handleSquareClick(squareName);
-            }
         }
     };
 
     const handleMouseMove = (e) => {
+        handleSquareHover(e.target.id);
         const img = dragImageRef.current;
         if (img && e.clientX && e.clientY) {
             img.style.left = `${e.clientX - img.clientWidth / 2}px`;
@@ -173,14 +180,15 @@ function Chessboard() {
     };
 
     const handleMouseUp = (e) => {
+        removeAllHoverSquares();
+
         let pieceSquareElement = document.getElementById(selectedPieceRef.current);
         let pieceHomeSquare = pieceSquareElement?.parentElement?.id;
 
         const dropSquareElement = document.getElementById(e.target.id);
-        const dropSquare = dropSquareElement.id;
+        const dropSquare = dropSquareElement?.id;
 
         if (dropSquare === pieceHomeSquare && pieceColor(selectedPieceRef.current) === player.current) {
-
             if (sameSquareDrop.current > 0) {
                 handleSquareClick(dropSquare);
                 sameSquareDrop.current = 0;
@@ -211,7 +219,7 @@ function Chessboard() {
                 pieceElement.style.display = 'block'; // Show the piece again
             }
 
-            return
+            return;
         } else {
             sameSquareDrop.current++;
             if (validSquaresRef.current.includes(dropSquare)) {
@@ -224,7 +232,6 @@ function Chessboard() {
                 document.removeEventListener('mouseup', handleMouseUp);
                 selectedPieceRef.current = null;
                 return;
-            } else {
             }
             if (draggingPieceRef.current) {
                 const pieceElement = document.getElementById(draggingPieceRef.current);
@@ -239,7 +246,7 @@ function Chessboard() {
             document.body.removeChild(img);
             document.removeEventListener('mousemove', handleMouseMove);
             document.removeEventListener('mouseup', handleMouseUp);
-        };
+        }
     };
 
     const handleDrop = (toSquare) => {
@@ -263,6 +270,22 @@ function Chessboard() {
         draggingFromSquareRef.current = null;
     };
 
+    const handleSquareHover = (squareName) => {
+        removeAllHoverSquares();
+        if (squareName[0] === 'W' || squareName[0] === 'B' || squareName === "") return;
+
+        let currentSquare = document.getElementById(squareName);
+
+        currentSquare.classList.add('hover-square');
+    };
+
+    const removeAllHoverSquares = () => {
+        const allSquares = Array.from(document.querySelectorAll('.square'));
+        allSquares.forEach(square => {
+            square.classList.remove('hover-square');
+        });
+    };
+
     const renderSquare = (piece, squareName, color, isSelected, isHighlighted, isLegalMove, isCaptureHint) => (
         <Square
             key={squareName}
@@ -273,6 +296,7 @@ function Chessboard() {
             onMouseDown={(e) => handleMouseDown(e, piece, squareName)}
             onDragEnd={handleMouseUp}
             onDrop={(e) => handleDrop(squareName)}
+            onDragOver={handleSquareHover}
             isSelected={isSelected}
             isHighlighted={isHighlighted}
             isLegalMove={isLegalMove}
