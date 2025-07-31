@@ -6,6 +6,6 @@ export default defineConfig({
   base: '/Chess-game/', // Replace 'your-repo-name' with the actual repository name
   plugins: [react()],
   build: {
-    target: 'baseline-widely-available',
+    target: 'esnext',
   },
 });

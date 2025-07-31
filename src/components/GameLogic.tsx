@@ -2,29 +2,29 @@ import soundManager from '../SoundManager';
 
 const boardLetters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 
-let squareLetter;
-let squareNumber;
-let player;
+let squareLetter: string;
+let squareNumber: number;
+let player: 'white' | 'black';
 
-let whiteKingInCheck;
-let blackKingInCheck;
+let whiteKingInCheck: boolean;
+let blackKingInCheck: boolean;
 
-let checkmate;
-let stalemate;
+let checkmate: boolean;
+let stalemate: boolean;
 
-let winner;
+let winner: string | undefined;
 
-let enPassantStatus = false;
+let enPassantStatus: false | any[] = false;
 
-let moveHistory = [];
-let undoneMoves = [];
+let moveHistory: any[] = [];
+let undoneMoves: any[] = [];
 
-let halfMoveCounter = 0;
-let fullMoveCounter = 1;
+let halfMoveCounter: number = 0;
+let fullMoveCounter: number = 1;
 
-let lastMoves = [];
+let lastMoves: string[] = [];
 
-export function createStartingPositionBoardArray() {
+export function createStartingPositionBoardArray(): string[][] {
   return [
     ['BR1', 'BN1', 'BB1', 'BQ', 'BK', 'BB2', 'BN2', 'BR2'],
     ['BP1', 'BP2', 'BP3', 'BP4', 'BP5', 'BP6', 'BP7', 'BP8'],
@@ -34,12 +34,12 @@ export function createStartingPositionBoardArray() {
     ['', '', '', '', '', '', '', ''],
     ['WP1', 'WP2', 'WP3', 'WP4', 'WP5', 'WP6', 'WP7', 'WP8'],
     ['WR1', 'WN1', 'WB1', 'WQ', 'WK', 'WB2', 'WN2', 'WR2'],
-  ];
+  ] as string[][];
 }
 
-let possibleMoves = [];
+let possibleMoves: string[] = [];
 
-export function handleSquareClick(clickedSquare, gameState) {
+export function handleSquareClick(clickedSquare: string, gameState: any) {
   if (checkmate || stalemate) return;
   const {
     selectedSquare,
@@ -48,7 +48,6 @@ export function handleSquareClick(clickedSquare, gameState) {
     setSelectedSquare,
     setBoardArray,
     setCurrentPlayer,
-    setHighlightedSquares,
     botPlaying,
   } = gameState;
   player = currentPlayer;
@@ -105,20 +104,18 @@ export function handleSquareClick(clickedSquare, gameState) {
     setSelectedSquare(null);
     hideLegalMovesSquares();
   }
-
-  // highlightLastPlayed();
 }
 
 export function handleMoveExecution(
-  clickedSquare,
-  selectedSquare,
-  boardArray,
-  setBoardArray,
-  setSelectedSquare,
-  setCurrentPlayer,
-  currentPlayer,
+  clickedSquare: string,
+  selectedSquare: string,
+  boardArray: string[][],
+  setBoardArray: (b: string[][]) => void,
+  setSelectedSquare: (s: string | null) => void,
+  setCurrentPlayer: (p: string) => void,
+  currentPlayer: string,
   botPlaying = false
-) {
+): void {
   lastMoves = [selectedSquare, clickedSquare];
   halfMoveCounter++;
   const selectedPiece = squareHasPiece(selectedSquare, boardArray);
@@ -133,7 +130,7 @@ export function handleMoveExecution(
   let soundPlayed = false;
   let isCheck = false;
 
-  if (getPieceType(selectedPiece) === 'pawn') {
+  if (selectedPiece && getPieceType(selectedPiece) === 'pawn') {
     halfMoveCounter = 0;
     const promotionBoard = promotePawnHandler(
       selectedPiece,
@@ -145,7 +142,7 @@ export function handleMoveExecution(
       currentPlayerInfo = getPlayerInfo(promotionBoard, currentPlayer);
     }
     pawnEnPassantHandler(selectedPiece, clickedSquare, preMoveBoard);
-  } else if (getPieceType(selectedPiece) === 'king') {
+  } else if (selectedPiece && getPieceType(selectedPiece) === 'king') {
     let castling = kingCastlingLogic(selectedPiece);
     if (castling) {
       const castleSquares = ['c1', 'g1', 'c8', 'g8'];
@@ -157,9 +154,11 @@ export function handleMoveExecution(
         const rookIndex = castleSquares.indexOf(clickedSquare);
         const rookSquare = getPiecePosition(rook[rookIndex]);
         const rookDestinationSquare = rookDestination[rookIndex];
-        setBoardArray(
-          movePiece(preMoveBoard, rookSquare, rookDestinationSquare)
-        );
+        if (rookSquare && rookDestinationSquare) {
+          setBoardArray(
+            movePiece(preMoveBoard, rookSquare, rookDestinationSquare)
+          );
+        }
       }
     }
   }
@@ -171,6 +170,7 @@ export function handleMoveExecution(
     soundManager.play('check');
     soundPlayed = true;
   } else if (
+    selectedPiece &&
     getPieceType(selectedPiece) === 'pawn' &&
     (clickedSquare[1] === '8' || clickedSquare[1] === '1')
   ) {
@@ -207,11 +207,9 @@ export function handleMoveExecution(
   setCurrentPlayer(changeCurrentPlayer(currentPlayer));
   setSelectedSquare(null);
   hideLegalMovesSquares();
-
-  // highlightLastPlayed();
 }
 
-function kingCastlingLogic(king) {
+function kingCastlingLogic(king: string) {
   const rookQueenSide = king === 'WK' ? 'WR1' : 'BR1';
   const rookKingSide = king === 'WK' ? 'WR2' : 'BR2';
 
@@ -237,7 +235,7 @@ function kingCastlingLogic(king) {
   return kingCastling;
 }
 
-function castleKing(king, boardArray) {
+function castleKing(king: string, boardArray: string[][]) {
   if (
     (king === 'WK' && whiteKingInCheck) ||
     (king === 'BK' && blackKingInCheck)
@@ -245,22 +243,23 @@ function castleKing(king, boardArray) {
     return false;
   const castleStatus = kingCastlingLogic(king);
 
-  if (castleStatus === false) return false;
+  if (!castleStatus) return false;
 
   const kingSquare = getPiecePosition(king);
+  if (!kingSquare) return false;
 
-  let queenSide = player === 'white' ? 'Q' : 'q';
-  let kingSide = player === 'white' ? 'K' : 'k';
+  let queenSide: string | null = player === 'white' ? 'Q' : 'q';
+  let kingSide: string | null = player === 'white' ? 'K' : 'k';
 
   if (!castleStatus.includes(kingSide)) {
-    kingSide = false;
+    kingSide = null;
   }
   if (!castleStatus.includes(queenSide)) {
-    queenSide = false;
+    queenSide = null;
   }
 
   if (castleStatus) {
-    const squareIsEmptyAndSafe = (square) => {
+    const squareIsEmptyAndSafe = (square: string) => {
       const piece = squareHasPiece(square, boardArray);
       return !piece && isMoveSafe(king, boardArray, kingSquare, square, false);
     };
@@ -301,10 +300,10 @@ function castleKing(king, boardArray) {
 }
 
 export function undoLastMove(
-  setBoardArray,
-  setCurrentPlayer,
-  setSelectedSquare
-) {
+  setBoardArray: (b: string[][]) => void,
+  setCurrentPlayer: (p: string) => void,
+  setSelectedSquare: (s: string | null) => void
+): void {
   if (moveHistory.length === 0) return;
 
   const lastMove = moveHistory.pop();
@@ -328,10 +327,10 @@ export function undoLastMove(
 }
 
 export function redoLastMove(
-  setBoardArray,
-  setCurrentPlayer,
-  setSelectedSquare
-) {
+  setBoardArray: (b: string[][]) => void,
+  setCurrentPlayer: (p: string) => void,
+  setSelectedSquare: (s: string | null) => void
+): void {
   if (undoneMoves.length === 0) return;
 
   const redoMove = undoneMoves.pop();
@@ -370,16 +369,16 @@ function checkGameStatus() {
   return false;
 }
 
-function getAllSafeMovesForPlayer(pieceInfo, boardArray) {
+function getAllSafeMovesForPlayer(pieceInfo: any[], boardArray: string[][]) {
   let infoCopy = pieceInfo.slice();
   infoCopy.pop();
 
-  let allSafeMoves = [];
+  let allSafeMoves: { piece: string; safeMoves: string[] }[] = [];
 
-  infoCopy.forEach((infoCopy) => {
-    let piece = infoCopy.piece;
-    let position = infoCopy.position;
-    if (piece) {
+  infoCopy.forEach((info) => {
+    let piece = info.piece;
+    let position = info.position;
+    if (piece && position) {
       let safeMoves = getValidMoves(piece, position, boardArray, false);
       if (safeMoves.length !== 0) {
         allSafeMoves.push({ piece: piece, safeMoves: safeMoves });
@@ -390,15 +389,15 @@ function getAllSafeMovesForPlayer(pieceInfo, boardArray) {
   return allSafeMoves;
 }
 
-function getPiecePosition(piece) {
+function getPiecePosition(piece: string): string | null {
   let pieceEl = document.getElementById(piece);
-  if (pieceEl) {
+  if (pieceEl && pieceEl.parentElement && pieceEl.parentElement.id) {
     return pieceEl.parentElement.id;
   }
   return null;
 }
 
-function endGame(type) {
+function endGame(type: string) {
   if (type === 'checkmate') {
     console.log(`Game Over - Checkmate player ${winner} won 2`);
   } else if (type === 'stalemate') {
@@ -407,7 +406,13 @@ function endGame(type) {
 }
 
 // Helper function to simulate a move and check if the king is in check
-function isMoveSafe(piece, boardArray, from, to, real = false) {
+function isMoveSafe(
+  piece: string,
+  boardArray: string[][],
+  from: string,
+  to: string,
+  real = false
+): boolean {
   const color = getPieceColor(piece);
 
   // Simulate the move
@@ -423,7 +428,12 @@ function isMoveSafe(piece, boardArray, from, to, real = false) {
   return !ourKingInCheck;
 }
 
-function getValidMoves(piece, position, boardArray, real = false) {
+function getValidMoves(
+  piece: string,
+  position: string,
+  boardArray: string[][],
+  real = false
+): string[] {
   const possibleMoves = getPossibleMoves(piece, position, boardArray, false);
   let safeMoves = possibleMoves.filter((move) =>
     isMoveSafe(piece, boardArray, position, move, real)
@@ -431,25 +441,25 @@ function getValidMoves(piece, position, boardArray, real = false) {
   return safeMoves;
 }
 
-const directionLetterBy = (direction, num) => {
+const directionLetterBy = (direction: number, num: number): string | null => {
   const index = boardLetters.indexOf(squareLetter) + direction * num;
   return boardLetters[index] || null;
 };
 
-const directionNumberBy = (direction, num) => {
+const directionNumberBy = (direction: number, num: number): number | null => {
   const newNumber = squareNumber + direction * num;
   return newNumber >= 1 && newNumber <= 8 ? newNumber : null;
 };
 
 export function getPossibleMoves(
-  piece,
-  position,
-  boardArray,
+  piece: string,
+  position: string,
+  boardArray: string[][],
   allowPromotion = false
-) {
+): string[] {
   const squareLetter = position[0];
   const squareNumber = parseInt(position[1]);
-  let moves = [];
+  let moves: string[] = [];
 
   const pieceType = getPieceType(piece);
   const pieceColor = getPieceColor(piece);
@@ -484,7 +494,12 @@ export function getPossibleMoves(
   return moves;
 }
 
-function getCoverMoves(piece, position, boardArray, allowPromotion = false) {
+function getCoverMoves(
+  piece: string,
+  position: string,
+  boardArray: string[][],
+  allowPromotion = false
+): string[] | undefined {
   const pieceType = getPieceType(piece);
   const pieceColor = getPieceColor(piece);
 
@@ -504,18 +519,21 @@ function getCoverMoves(piece, position, boardArray, allowPromotion = false) {
   }
 }
 
-function pawnEnPassantHandler(selectedPiece, toSquare, boardArray) {
+function pawnEnPassantHandler(
+  selectedPiece: string,
+  toSquare: string,
+  boardArray: string[][]
+) {
   if (enPassantStatus !== false) {
     const [, enPassantSquare, , attackSquare, attackPawn] = enPassantStatus;
 
     if (attackPawn.includes(selectedPiece) && attackSquare === toSquare) {
       const [targetRow, targetCol] = getRowAndColumn(enPassantSquare);
       boardArray[8 - targetRow][targetCol] = '';
-      boardArray = movePiece(
-        boardArray,
-        getPiecePosition(selectedPiece),
-        toSquare
-      );
+      const fromPos = getPiecePosition(selectedPiece);
+      if (fromPos) {
+        boardArray = movePiece(boardArray, fromPos, toSquare);
+      }
     }
   }
 
@@ -524,6 +542,7 @@ function pawnEnPassantHandler(selectedPiece, toSquare, boardArray) {
   const color = getPieceColor(selectedPiece);
 
   const fromSquare = getPiecePosition(selectedPiece);
+  if (!fromSquare) return false;
 
   const [fromRow] = getRowAndColumn(fromSquare);
   const [toRow] = getRowAndColumn(toSquare);
@@ -535,10 +554,12 @@ function pawnEnPassantHandler(selectedPiece, toSquare, boardArray) {
     const leftSquare = getLeftSquare(toSquare);
     const rightSquare = getRightSquare(toSquare);
 
-    const leftPiece =
-      document.getElementById(leftSquare)?.firstElementChild?.id || null;
-    const rightPiece =
-      document.getElementById(rightSquare)?.firstElementChild?.id || null;
+    const leftPiece = leftSquare
+      ? document.getElementById(leftSquare)?.firstElementChild?.id || null
+      : null;
+    const rightPiece = rightSquare
+      ? document.getElementById(rightSquare)?.firstElementChild?.id || null
+      : null;
 
     if (leftPiece) {
       if (
@@ -585,7 +606,11 @@ function pawnEnPassantHandler(selectedPiece, toSquare, boardArray) {
   return false;
 }
 
-function promotePawnHandler(selectedPiece, clickedSquare, preMoveBoard) {
+function promotePawnHandler(
+  selectedPiece: string,
+  clickedSquare: string,
+  preMoveBoard: string[][]
+) {
   if (selectedPiece && getPieceType(selectedPiece) === 'pawn') {
     if (player === 'white' && clickedSquare[1] === '8') {
       return promotePawnTo(clickedSquare, preMoveBoard, 'Q');
@@ -596,7 +621,11 @@ function promotePawnHandler(selectedPiece, clickedSquare, preMoveBoard) {
   return false;
 }
 
-function promotePawnTo(clickedSquare, boardArray, newPiece = null) {
+function promotePawnTo(
+  clickedSquare: string,
+  boardArray: string[][],
+  newPiece: string | null = null
+) {
   let finalPiece;
   let color = player === 'white' ? 'W' : 'B';
 
@@ -621,15 +650,15 @@ function promotePawnTo(clickedSquare, boardArray, newPiece = null) {
 }
 
 function pawnMoves(
-  piece,
-  position,
-  aPieceColor,
-  boardArray,
+  piece: string,
+  position: string,
+  aPieceColor: string,
+  boardArray: string[][],
   allowPromotion = false
-) {
+): string[] {
   squareLetter = position[0];
   squareNumber = parseInt(position[1]);
-  let moves = [];
+  let moves: string[] = [];
 
   const direction = aPieceColor === 'white' ? 1 : -1; // 1 for White (up), -1 for Black (down)
   const startingRow = aPieceColor === 'white' ? 2 : 7;
@@ -693,10 +722,15 @@ function pawnMoves(
   return moves;
 }
 
-function rookMoves(position, aPieceColor, boardArray, coverMoves = false) {
+function rookMoves(
+  position: string,
+  aPieceColor: string,
+  boardArray: string[][],
+  coverMoves = false
+): string[] {
   squareLetter = position[0];
   squareNumber = parseInt(position[1]);
-  let moves = [];
+  let moves: string[] = [];
 
   // Define directions for rook: up, down, right, left
   const directions = [
@@ -713,7 +747,7 @@ function rookMoves(position, aPieceColor, boardArray, coverMoves = false) {
       const number = directionNumberBy(numberDirection, i);
 
       // Ensure we're within board bounds
-      if (!letter || number < 1 || number > 8) break;
+      if (!letter || number === null || number < 1 || number > 8) break;
 
       const square = `${letter}${number}`;
       const piece = boardArray[8 - number][boardLetters.indexOf(letter)];
@@ -727,10 +761,15 @@ function rookMoves(position, aPieceColor, boardArray, coverMoves = false) {
   return moves;
 }
 
-function bishopMoves(position, aPieceColor, boardArray, coverMoves = false) {
+function bishopMoves(
+  position: string,
+  aPieceColor: string,
+  boardArray: string[][],
+  coverMoves = false
+): string[] {
   squareLetter = position[0];
   squareNumber = parseInt(position[1]);
-  let moves = [];
+  let moves: string[] = [];
 
   // Define diagonal directions: [up-right, up-left, down-right, down-left]
   const directions = [
@@ -747,7 +786,7 @@ function bishopMoves(position, aPieceColor, boardArray, coverMoves = false) {
       const number = directionNumberBy(numberDirection, i);
 
       // Ensure we're within board bounds
-      if (!letter || number < 1 || number > 8) break;
+      if (!letter || number === null || number < 1 || number > 8) break;
 
       const square = `${letter}${number}`;
       const piece = boardArray[8 - number][boardLetters.indexOf(letter)];
@@ -762,10 +801,15 @@ function bishopMoves(position, aPieceColor, boardArray, coverMoves = false) {
   return moves;
 }
 
-function knightMoves(position, aPieceColor, boardArray, coverMoves = false) {
+function knightMoves(
+  position: string,
+  aPieceColor: string,
+  boardArray: string[][],
+  coverMoves = false
+): string[] {
   squareLetter = position[0];
   squareNumber = parseInt(position[1]);
-  let moves = [];
+  let moves: string[] = [];
 
   const directions = [
     { numberDirection: -2, letterDirection: 1 }, // 2 down 1 right (Upright L)
@@ -782,7 +826,7 @@ function knightMoves(position, aPieceColor, boardArray, coverMoves = false) {
     const letter = directionLetterBy(letterDirection, 1);
     const number = directionNumberBy(numberDirection, 1);
 
-    if (!letter || number < 1 || number > 8) return;
+    if (!letter || number === null || number < 1 || number > 8) return;
 
     const square = `${letter}${number}`;
     const piece = boardArray[8 - number][boardLetters.indexOf(letter)];
@@ -793,18 +837,28 @@ function knightMoves(position, aPieceColor, boardArray, coverMoves = false) {
   return moves;
 }
 
-function queenMoves(position, aPieceColor, boardArray, coverMoves = false) {
-  let moves = [];
+function queenMoves(
+  position: string,
+  aPieceColor: string,
+  boardArray: string[][],
+  coverMoves = false
+): string[] {
+  let moves: string[] = [];
   moves.push(...rookMoves(position, aPieceColor, boardArray));
   moves.push(...bishopMoves(position, aPieceColor, boardArray));
 
   return moves;
 }
 
-function kingMoves(position, aPieceColor, boardArray, coverMoves = false) {
+function kingMoves(
+  position: string,
+  aPieceColor: string,
+  boardArray: string[][],
+  coverMoves = false
+): string[] {
   squareLetter = position[0];
   squareNumber = parseInt(position[1]);
-  let moves = [];
+  let moves: string[] = [];
 
   const directions = [
     { letterDirection: 0, numberDirection: 1 }, // Up
@@ -821,7 +875,7 @@ function kingMoves(position, aPieceColor, boardArray, coverMoves = false) {
     const letter = directionLetterBy(letterDirection, 1);
     const number = directionNumberBy(numberDirection, 1);
 
-    if (!letter || number < 1 || number > 8) return;
+    if (!letter || number === null || number < 1 || number > 8) return;
 
     const square = `${letter}${number}`;
     const piece = boardArray[8 - number][boardLetters.indexOf(letter)];
@@ -832,7 +886,11 @@ function kingMoves(position, aPieceColor, boardArray, coverMoves = false) {
   return moves;
 }
 
-function movePiece(boardArray, fromSquare, toSquare) {
+function movePiece(
+  boardArray: string[][],
+  fromSquare: string,
+  toSquare: string
+): string[][] {
   let newBoardArray = boardArray.map((row) => row.slice());
   const [startColumn, startRow] = fromSquare.split('');
   const [endColumn, endRow] = toSquare.split('');
@@ -847,7 +905,7 @@ function movePiece(boardArray, fromSquare, toSquare) {
   return newBoardArray;
 }
 
-function getPlayerInfo(boardArray, pieceColor) {
+function getPlayerInfo(boardArray: string[][], pieceColor: string): any[] {
   const currentColor = pieceColor;
   const opponentColor = pieceColor === 'white' ? 'black' : 'white';
 
@@ -888,19 +946,19 @@ function getPlayerInfo(boardArray, pieceColor) {
     (piece) => piece.attacks || []
   );
 
-  currentPlayerInfo.forEach((pieceInfo) => {
+  currentPlayerInfo.forEach((pieceInfo: any) => {
     if (pieceInfo.piece === 'WK' || pieceInfo.piece === 'BK') {
       pieceInfo.moves = pieceInfo.moves.filter(
-        (move) => !allThreatenedSquares.includes(move)
+        (move: string) => !allThreatenedSquares.includes(move)
       );
     }
   });
 
   const generateStatusText = (
-    player1,
-    player2,
-    attackedPieces,
-    threatenedPieces
+    player1: string,
+    player2: string,
+    attackedPieces: string[],
+    threatenedPieces: string[]
   ) => ({
     attacks: `Pieces ${player1} can capture: ${attackedPieces}`,
     threats: `Pieces ${player1} could lose: ${threatenedPieces}`,
@@ -922,7 +980,12 @@ function getPlayerInfo(boardArray, pieceColor) {
   return currentPlayerInfo;
 }
 
-function createPieceInfo(piece, position, pieceColor, boardArray) {
+function createPieceInfo(
+  piece: string,
+  position: string,
+  pieceColor: string,
+  boardArray: string[][]
+): any {
   const possibleMoves = getPossibleMoves(piece, position, boardArray, false);
   const moves = getMovesOnly(possibleMoves, boardArray);
   const captures = getCapturesOnly(pieceColor, possibleMoves, boardArray);
@@ -940,18 +1003,22 @@ function createPieceInfo(piece, position, pieceColor, boardArray) {
   return pieceInfo;
 }
 
-function getAttackedSquares(piece, position, boardArray) {
-  let attackedSquares = [];
+function getAttackedSquares(
+  piece: string,
+  position: string,
+  boardArray: string[][]
+): string[] | undefined {
+  let attackedSquares: string[] = [];
   if (getPieceType(piece) === 'pawn') {
     attackedSquares = getAllPawnThreats(piece, position);
   } else {
-    attackedSquares = getCoverMoves(piece, position, boardArray, false);
+    const cover = getCoverMoves(piece, position, boardArray, false);
+    attackedSquares = cover ? cover : [];
   }
-
   return attackedSquares;
 }
 
-function sortSquares(squares) {
+function sortSquares(squares: string[]): string[] {
   return squares.sort((a, b) => {
     const [aLetter, aNumber] = [a[0], parseInt(a[1])];
     const [bLetter, bNumber] = [b[0], parseInt(b[1])];
@@ -963,7 +1030,7 @@ function sortSquares(squares) {
   });
 }
 
-function getAllPawnThreats(piece, position) {
+function getAllPawnThreats(piece: string, position: string): string[] {
   const pieceColor = getPieceColor(piece);
   let [row, column] = getRowAndColumn(position);
   const letter = boardLetters[column];
@@ -983,23 +1050,27 @@ function getAllPawnThreats(piece, position) {
     : [leftDiagonal, rightDiagonal];
 }
 
-function getMovesOnly(moves, boardArray) {
+function getMovesOnly(moves: string[], boardArray: string[][]): string[] {
   return moves.filter((square) => !squareHasPiece(square, boardArray));
 }
 
-function getCapturesOnly(color, moves, boardArray) {
+function getCapturesOnly(
+  color: string,
+  moves: string[],
+  boardArray: string[][]
+): string[] {
   return moves.filter((square) =>
     squareHasOpponentPiece(color, square, boardArray)
   );
 }
 
 function addMoveIfOpponentOrEmpty(
-  square,
-  piece,
-  clickedPieceColor,
-  moves,
+  square: string,
+  piece: string,
+  clickedPieceColor: string,
+  moves: string[],
   coverMoves = false
-) {
+): boolean {
   if (!piece) {
     moves.push(square);
     return true; // Continue moving in this direction
@@ -1010,26 +1081,35 @@ function addMoveIfOpponentOrEmpty(
   return false; // Stop moving in this direction if it's our own piece and we're not looking for cover moves
 }
 
-function isOpponentPiece(piece, clickedPieceColor) {
+function isOpponentPiece(piece: string, clickedPieceColor: string): boolean {
   return getPieceColor(piece) !== clickedPieceColor;
 }
 
-function squareHasPiece(squareName, boardArray) {
+function squareHasPiece(
+  squareName: string,
+  boardArray: string[][]
+): string | null {
   const [column, row] = squareName.split('');
   const columnNumber = boardLetters.indexOf(column);
-  const rowNumber = 8 - row;
-
+  const rowNumber = 8 - Number(row);
+  if (columnNumber < 0 || rowNumber < 0 || rowNumber > 7) return null;
   const piece = boardArray[rowNumber][columnNumber];
-
   return piece ? piece : null;
 }
 
-function squareHasOpponentPiece(color, squareName, boardArray) {
+function squareHasOpponentPiece(
+  color: string,
+  squareName: string,
+  boardArray: string[][]
+): boolean {
   const piece = squareHasPiece(squareName, boardArray);
-  return piece && getPieceColor(piece) !== color;
+  return !!piece && getPieceColor(piece) !== color;
 }
 
-function isStalemate(currentPlayerInfo, boardArray) {
+function isStalemate(
+  currentPlayerInfo: any[],
+  boardArray: string[][]
+): boolean | undefined {
   if (stalemate) return true;
   if (halfMoveCounter >= 50) {
     soundManager.play('gameEnd');
@@ -1051,7 +1131,7 @@ function isStalemate(currentPlayerInfo, boardArray) {
   }
 }
 
-function isCheckmate(boardArray) {
+function isCheckmate(boardArray: string[][]): boolean {
   if (checkmate) return true;
   if (blackKingInCheck || whiteKingInCheck) {
     const opponentColor = player === 'white' ? 'black' : 'white';
@@ -1071,13 +1151,21 @@ function isCheckmate(boardArray) {
   return false;
 }
 
-function isBoardInCheck(color, currentPlayerInfo, real = false) {
+function isBoardInCheck(
+  color: string,
+  currentPlayerInfo: any[],
+  real = false
+): boolean {
   const ourKing = isOurKingInCheck(color, currentPlayerInfo, real);
   const opponentKing = isOpponentKingInCheck(color, currentPlayerInfo, real);
   return ourKing || opponentKing;
 }
 
-function isOurKingInCheck(color, currentPlayerInfo, real = false) {
+function isOurKingInCheck(
+  color: string,
+  currentPlayerInfo: any[],
+  real = false
+): boolean {
   const currentKing = color === 'white' ? 'WK' : 'BK';
   const threats = currentPlayerInfo[currentPlayerInfo.length - 1].threats;
 
@@ -1096,7 +1184,11 @@ function isOurKingInCheck(color, currentPlayerInfo, real = false) {
   }
 }
 
-function isOpponentKingInCheck(color, currentPlayerInfo, real = false) {
+function isOpponentKingInCheck(
+  color: string,
+  currentPlayerInfo: any[],
+  real = false
+): boolean {
   let opponentKing = color === 'white' ? 'BK' : 'WK';
   let attacks = currentPlayerInfo[currentPlayerInfo.length - 1].attacks;
 
@@ -1115,14 +1207,17 @@ function isOpponentKingInCheck(color, currentPlayerInfo, real = false) {
   }
 }
 
-function hideLegalMovesSquares() {
+function hideLegalMovesSquares(): void {
   const squares = document.querySelectorAll('.legal-move, .capture-hint');
   squares.forEach((square) => {
     square.classList.remove('legal-move', 'capture-hint');
   });
 }
 
-function showLegalMovesSquares(squares, boardArray) {
+function showLegalMovesSquares(
+  squares: string[],
+  boardArray: string[][]
+): void {
   hideLegalMovesSquares();
   squares.forEach((squareName) => {
     const square = document.getElementById(squareName);
@@ -1137,7 +1232,7 @@ function showLegalMovesSquares(squares, boardArray) {
   });
 }
 
-function getPieceColor(piece) {
+function getPieceColor(piece: string): string {
   if (piece[0] === 'W' || piece[0] === 'w') {
     return 'white';
   } else {
@@ -1145,7 +1240,7 @@ function getPieceColor(piece) {
   }
 }
 
-function getPieceType(piece) {
+function getPieceType(piece: string): string {
   if (piece.includes('PromotedPawn')) piece = piece.split('PromotedPawn')[0];
 
   const pieces = {
@@ -1157,10 +1252,16 @@ function getPieceType(piece) {
     K: 'king',
   };
 
-  return piece.length <= 3 ? pieces[piece[1]] : piece.split('-')[1];
+  // Only allow keys that are valid for the pieces object
+  const key = piece[1] as keyof typeof pieces;
+  if (piece.length <= 3 && Object.prototype.hasOwnProperty.call(pieces, key)) {
+    return pieces[key];
+  } else {
+    return piece.split('-')[1];
+  }
 }
 
-function changeCurrentPlayer(currentPlayer) {
+function changeCurrentPlayer(currentPlayer: string): string {
   if (currentPlayer === 'white') {
     return 'black';
   } else {
@@ -1169,7 +1270,7 @@ function changeCurrentPlayer(currentPlayer) {
   }
 }
 
-function getRowAndColumn(square) {
+function getRowAndColumn(square: string): [number, number] {
   const column = square.charCodeAt(0) - 97;
   const row = parseInt(square[1]);
   return [row, column];
@@ -1178,31 +1279,36 @@ function getRowAndColumn(square) {
 // these functions are all from whites perspective
 // when i have to implement black perspective where these are called i guess i will just reverse the row and column
 // or implement up, down, left, right checking current player color
-function getUpSquare(currentSquareName) {
+function getUpSquare(currentSquareName: string): string | null {
   if (currentSquareName[1] === '8') return null;
   const [row, column] = getRowAndColumn(currentSquareName);
   return boardLetters[column] + (row + 1);
 }
 
-function getDownSquare(currentSquareName) {
+function getDownSquare(currentSquareName: string): string | null {
   if (currentSquareName[1] === '1') return null;
   const [row, column] = getRowAndColumn(currentSquareName);
   return boardLetters[column] + (row - 1);
 }
 
-function getLeftSquare(currentSquareName) {
+function getLeftSquare(currentSquareName: string): string | null {
   if (currentSquareName[0] === 'a') return null;
   const [row, column] = getRowAndColumn(currentSquareName);
   return boardLetters[column - 1] + row;
 }
 
-function getRightSquare(currentSquareName) {
+function getRightSquare(currentSquareName: string): string | null {
   if (currentSquareName[0] === 'h') return null;
   const [row, column] = getRowAndColumn(currentSquareName);
   return boardLetters[column + 1] + row;
 }
 
-export function getLegalMoves(squareName, piece, boardArray, currentPlayer) {
+export function getLegalMoves(
+  squareName: string,
+  piece: string,
+  boardArray: string[][],
+  currentPlayer: string
+): string[] {
   const pieceColor = getPieceColor(piece);
   if (pieceColor !== currentPlayer) {
     return [];
@@ -1211,20 +1317,10 @@ export function getLegalMoves(squareName, piece, boardArray, currentPlayer) {
   return legalMoves;
 }
 
-const highlightLastPlayed = () => {
-  document.querySelectorAll('.highlight').forEach((square) => {
-    square.classList.remove('highlight');
-  });
-
-  lastMoves.forEach((squareName) => {
-    const squareElement = document.querySelector(`#${squareName}`);
-    if (squareElement) {
-      squareElement.classList.add('highlight');
-    }
-  });
-};
-
-export function convertBoardArrayToFEN(boardArray, player) {
+export function convertBoardArrayToFEN(
+  boardArray: string[][],
+  player: string
+): string {
   let fen = '';
   const pieceMap = {
     W: {
@@ -1258,9 +1354,14 @@ export function convertBoardArrayToFEN(boardArray, player) {
             fenRow += emptyCount;
             emptyCount = 0;
           }
-          const color = square[0]; // First character: W or B
-          const type = square[1]; // Second character: P, R, N, etc.
-          fenRow += pieceMap[color][type];
+          const color = square[0] as 'W' | 'B'; // First character: W or B
+          const type = square[1] as keyof (typeof pieceMap)['W']; // Second character: P, R, N, etc.
+          if (
+            (color === 'W' || color === 'B') &&
+            Object.prototype.hasOwnProperty.call(pieceMap[color], type)
+          ) {
+            fenRow += pieceMap[color][type];
+          }
         }
       }
 
