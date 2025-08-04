@@ -146,50 +146,83 @@ const Chessboard: React.FC = () => {
   // Track the last mouse down square for click-to-deselect logic
   const lastMouseDownSquare = useRef<string | null>(null);
 
-  const handlePieceMouseDown = (
+  const handleMouseDown = (
     e: React.MouseEvent<HTMLImageElement>,
     piece: string,
     img: HTMLImageElement
   ) => {
+    console.log('🖱️ Mouse down on piece:', piece);
+    e.preventDefault();
+    e.stopPropagation();
+
+    // Only handle pieces of the current player
+    const pieceColor = piece[0] === 'W' ? 'white' : 'black';
+    if (pieceColor !== player.current) {
+      console.log('❌ Not your piece:', piece);
+      return;
+    }
+
     const squareName = img.parentElement?.id || null;
+    if (!squareName) {
+      console.log('No square found for piece:', piece);
+      return;
+    }
+
     lastMouseDownSquare.current = squareName;
 
+    // If clicking on different piece, clear old selection
+    if (selectedPieceRef.current && selectedPieceRef.current !== piece) {
+      console.log('🔄 Different piece clicked - clearing old selection');
+      setValidSquares([]);
+      setHighlightedSquares([]);
+    }
+
+    // Always select the piece and show its moves
+    selectedSquare.current = squareName;
+    selectedPieceRef.current = piece;
     draggingPieceRef.current = piece;
     draggingFromSquareRef.current = squareName;
-    selectedPieceRef.current = piece;
-    if (squareName) {
-      setHighlightedSquares([squareName]);
-      const legalMoves = getLegalMoves(
-        squareName,
-        piece,
-        boardArray as string[][],
-        player.current
-      );
-      setValidSquares(legalMoves);
-    }
-    // Hide the original piece and show custom drag image
-    img.style.display = 'none';
 
-    // Set up custom drag image
+    // Highlight square and show legal moves
+    setHighlightedSquares([squareName]);
+
+    const legalMoves = getLegalMoves(
+      squareName,
+      piece,
+      boardArray as string[][],
+      player.current
+    );
+    setValidSquares(legalMoves);
+
+    // Hide the original piece and show custom drag image
+    img.classList.add('dragging');
+
+    // Set up custom drag image using the parent square's size and piece percentage
     const customDragImage = document.querySelector(
       '.custom-drag-image'
     ) as HTMLElement;
-    if (customDragImage && squaresize) {
+    if (customDragImage && img.parentElement) {
+      const squareRect = img.parentElement.getBoundingClientRect();
+      const pieceWidth = squareRect.width * 0.9;
+      const pieceHeight = squareRect.height * 0.9;
       customDragImage.style.display = 'block';
-      customDragImage.style.width = `${squaresize}px`;
-      customDragImage.style.height = `${squaresize}px`;
+      customDragImage.style.width = `${pieceWidth}px`;
+      customDragImage.style.height = `${pieceHeight}px`;
       customDragImage.style.backgroundImage = `url(${img.src})`;
-      customDragImage.style.left = `${e.clientX - squaresize / 2}px`;
-      customDragImage.style.top = `${e.clientY - squaresize / 2}px`;
+      customDragImage.style.left = `${e.clientX - pieceWidth / 2}px`;
+      customDragImage.style.top = `${e.clientY - pieceHeight / 2}px`;
     }
 
     // Add event listeners for drag behavior
     document.addEventListener('mousemove', mouseMoveListener);
     document.addEventListener('mouseup', mouseUpListener);
-    document.body.style.cursor = 'grabbing';
+    document.body.classList.add('dragging');
+
+    console.log('🎯 Piece selected and drag started');
   };
 
   const handlePieceDragEnd = (e: React.DragEvent<HTMLImageElement>) => {
+    console.log('🐉 Piece drag ended');
     const img = e.currentTarget;
     img.style.opacity = '1';
     img.style.display = 'block';
@@ -212,6 +245,7 @@ const Chessboard: React.FC = () => {
   };
 
   const handleMouseUp = (e: MouseEvent) => {
+    console.log('🖱️ Mouse up');
     removeAllHoverSquares();
 
     // Hide custom drag image
@@ -224,6 +258,7 @@ const Chessboard: React.FC = () => {
 
     // Reset cursor and remove event listeners
     document.body.style.cursor = 'default';
+    document.body.classList.remove('dragging');
     document.removeEventListener('mousemove', mouseMoveListener);
     document.removeEventListener('mouseup', mouseUpListener);
 
@@ -231,83 +266,95 @@ const Chessboard: React.FC = () => {
     if (draggingPieceRef.current) {
       const pieceElement = document.getElementById(draggingPieceRef.current);
       if (pieceElement) {
-        pieceElement.style.display = 'block';
-        (pieceElement as HTMLImageElement).style.opacity = '1';
+        pieceElement.classList.remove('dragging');
       }
     }
 
-    let pieceSquareElement = document.getElementById(selectedPieceRef.current!);
-    let pieceHomeSquare = pieceSquareElement?.parentElement?.id;
+    // Get the target square
+    const target = e.target as HTMLElement;
+    let targetSquare = target.id;
 
-    const dropSquareElement = document.getElementById(
-      (e.target as HTMLElement).id
+    // If we clicked on a piece, get its parent square
+    if (target.classList.contains('piece') || target.tagName === 'IMG') {
+      targetSquare = target.parentElement?.id || '';
+    }
+
+    console.log(
+      '🎯 Target square:',
+      targetSquare,
+      'Mouse down was on:',
+      lastMouseDownSquare.current
     );
-    const dropSquare: string = dropSquareElement?.id || '';
 
-    if (
-      dropSquare &&
-      dropSquare === pieceHomeSquare &&
-      selectedPieceRef.current &&
-      pieceColor(selectedPieceRef.current) === player.current
-    ) {
-      // Only deselect if this was a click (mouse down and up on same square)
-      if (lastMouseDownSquare.current === dropSquare) {
-        setValidSquares([]);
-        setHighlightedSquares([]);
-        selectedPieceRef.current = null;
-        draggingPieceRef.current = null;
-        draggingFromSquareRef.current = null;
-        lastMouseDownSquare.current = null;
-        return;
-      } else {
-        // If not a click, keep the home square highlighted
-        setValidSquares([]);
-        setHighlightedSquares([pieceHomeSquare]);
-        selectedPieceRef.current = null;
-        draggingPieceRef.current = null;
-        draggingFromSquareRef.current = null;
-        lastMouseDownSquare.current = null;
-        return;
-      }
-    } else {
-      if (dropSquare && validSquaresRef.current.includes(dropSquare)) {
-        handleDrop(dropSquare);
-        selectedPieceRef.current = null;
-        return;
-      }
-    }
-
-    // Reset everything
-    selectedPieceRef.current = null;
-    draggingPieceRef.current = null;
-  };
-
-  const handleDrop = (toSquare: string) => {
-    const piece = draggingPieceRef.current;
-    const fromSquare = draggingFromSquareRef.current;
-    if (!piece || !fromSquare) {
+    // If mouse up on same square as mouse down
+    if (targetSquare === lastMouseDownSquare.current) {
+      console.log('🔄 Same square - keeping selection, ending drag visual');
+      // Just end the drag visual but keep piece selected with legal moves shown
+      draggingPieceRef.current = null;
+      draggingFromSquareRef.current = null;
+      // Keep selectedPieceRef, selectedSquare, highlightedSquares, and validSquares
       return;
     }
 
-    const gameState = {
-      selectedSquare: fromSquare,
-      currentPlayer: player.current,
-      boardArray,
-      setSelectedSquare: (newSelectedSquare: string | null) => {
-        selectedSquare.current = newSelectedSquare;
-      },
-      setBoardArray,
-      setCurrentPlayer: (otherPlayer: 'white' | 'black') => {
-        player.current = otherPlayer;
-      },
-      setHighlightedSquares,
-      botPlaying: false,
-    };
-    handleSquareClickLogic(toSquare, gameState);
-    setValidSquares([]);
-    setHighlightedSquares([]);
+    // If mouse up on a valid move square - execute the move
+    if (targetSquare && validSquaresRef.current.includes(targetSquare)) {
+      console.log('🎯 Valid move - executing on', targetSquare);
+      handleDrop(targetSquare);
+      return;
+    }
+
+    // Mouse up on invalid square - just end drag visual and keep selection
+    console.log('❌ Invalid square - keeping selection');
     draggingPieceRef.current = null;
     draggingFromSquareRef.current = null;
+    // Keep selectedPieceRef, selectedSquare, highlightedSquares, and validSquares
+  };
+
+  const handleDrop = (dropSquare: string) => {
+    console.log('🎯 Handling drop on:', dropSquare);
+
+    if (!selectedPieceRef.current || !draggingFromSquareRef.current) {
+      console.log('❌ No piece selected or drag source');
+      return;
+    }
+
+    const fromSquare = draggingFromSquareRef.current;
+
+    // Clear all UI state immediately
+    selectedPieceRef.current = null;
+    draggingPieceRef.current = null;
+    draggingFromSquareRef.current = null;
+    setValidSquares([]);
+    setHighlightedSquares([]);
+
+    // Play move sound
+    soundManager.play('playerMove');
+
+    // Convert boardArray to string[][] to prevent null values
+    const board: string[][] = boardArray.map((row) =>
+      row.map((cell) => cell || '')
+    );
+
+    // Create game state for the move
+    const gameState = {
+      board: board,
+      setBoard: setBoardArray,
+      player: player.current,
+      setPlayer: (newPlayer: 'white' | 'black') => {
+        player.current = newPlayer;
+      },
+      setHighlightedSquares,
+      setValidSquares,
+      validSquares,
+      highlightedSquares,
+      selectedSquare: selectedSquare.current,
+      setSelectedSquare: (square: string | null) => {
+        selectedSquare.current = square;
+      },
+    };
+
+    // Execute the move using the game logic
+    handleSquareClickLogic(dropSquare, gameState);
   };
 
   const handleSquareHover = (squareName: string) => {
@@ -342,7 +389,7 @@ const Chessboard: React.FC = () => {
       squareName={squareName}
       color={color}
       piece={piece || undefined}
-      onMouseDown={handlePieceMouseDown}
+      onMouseDown={handleMouseDown}
       onDragEnd={handlePieceDragEnd}
       onDrop={(_e, sq) => handleDrop(sq)}
       onDragOver={handleSquareHover}

@@ -52,6 +52,8 @@ export function handleSquareClick(clickedSquare: string, gameState: any) {
   } = gameState;
   player = currentPlayer;
   let piece = squareHasPiece(clickedSquare, boardArray);
+  console.log(`🟡 Square clicked: ${clickedSquare}, Piece: ${piece}`);
+
   let pieceColor = piece ? getPieceColor(piece) : null;
   const currentPlayerInfo = getPlayerInfo(boardArray, currentPlayer);
   isBoardInCheck(currentPlayer, currentPlayerInfo, true);
@@ -102,7 +104,7 @@ export function handleSquareClick(clickedSquare: string, gameState: any) {
       enPassantStatus = false;
   } else {
     setSelectedSquare(null);
-    hideLegalMovesSquares();
+    // hideLegalMovesSquares();
   }
 }
 

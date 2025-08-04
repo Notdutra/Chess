@@ -1,3 +1,10 @@
+.selected.light {
+  background-color: rgb(245, 246, 130);
+}
+.selected.dark {
+  background-color: rgb(185, 202, 67);
+}
+
 *::before,
 *,
 *::after {
@@ -5,11 +12,8 @@
 }
 
 :root {
-  --light-square-color: rgb(236, 237, 209);
+  --light-square-color: rgb(235, 236, 208);
   --dark-square-color: rgb(115, 149, 82);
-
-  --light-square-highlight-color: rgb(245, 245, 140);
-  --dark-square-highlight-color: rgb(186, 201, 73);
 
   --dark-square-red-highlight-color: rgb(212, 110, 81);
   --light-square-red-highlight-color: rgb(237, 126, 106);
@@ -37,9 +41,12 @@
   background-color: var(--dark-square-color);
   color: var(--dark-square-highlight-color);
 }
+.highlight.light {
+  background-color: rgb(245, 245, 140);
+}
 
-.highlight {
-  background-color: currentColor;
+.highlight.dark {
+  background-color: rgb(185, 202, 67);
 }
 
 .legal-move.light::before {
@@ -84,6 +91,8 @@
 
 .hover-square {
   position: relative;
+  --light-square-highlight-color: rgb(245, 245, 140);
+  --dark-square-highlight-color: rgb(186, 201, 73);
 }
 
 .hover-square::after {

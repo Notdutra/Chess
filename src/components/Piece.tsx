@@ -35,9 +35,19 @@ interface PieceProps {
     img: HTMLImageElement
   ) => void;
   onDragEnd?: React.DragEventHandler<HTMLImageElement>;
+  onDragStart?: (
+    e: React.DragEvent<HTMLImageElement>,
+    piece: string,
+    img: HTMLImageElement
+  ) => void;
 }
 
-const Piece: React.FC<PieceProps> = ({ piece, onMouseDown, onDragEnd }) => {
+const Piece: React.FC<PieceProps> = ({
+  piece,
+  onMouseDown,
+  onDragEnd,
+  onDragStart,
+}) => {
   const pieceImage = piece ? pieceImages[piece.slice(0, 2)] : undefined;
 
   return pieceImage ? (
@@ -48,10 +58,24 @@ const Piece: React.FC<PieceProps> = ({ piece, onMouseDown, onDragEnd }) => {
       src={pieceImage}
       alt={piece}
       draggable={true}
+      style={{ userSelect: 'none', touchAction: 'none' }}
       onMouseDown={
-        onMouseDown ? (e) => onMouseDown(e, piece, e.currentTarget) : undefined
+        onMouseDown
+          ? (e) => {
+              console.log('🖱️ Piece onMouseDown triggered for piece:', piece);
+              onMouseDown(e, piece, e.currentTarget);
+            }
+          : undefined
       }
       onDragEnd={onDragEnd}
+      onDragStart={
+        onDragStart
+          ? (e) => {
+              console.log('🐉 Piece onDragStart triggered for piece:', piece);
+              onDragStart(e, piece, e.currentTarget);
+            }
+          : undefined
+      }
     />
   ) : null;
 };

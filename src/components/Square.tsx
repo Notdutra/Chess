@@ -10,6 +10,11 @@ interface SquareProps {
     piece: string,
     img: HTMLImageElement
   ) => void;
+  onDragStart?: (
+    e: React.DragEvent<HTMLImageElement>,
+    piece: string,
+    img: HTMLImageElement
+  ) => void;
   onDragEnd?: React.DragEventHandler<HTMLImageElement>;
   onDrop?: (e: React.DragEvent<HTMLDivElement>, squareName: string) => void;
   onDragOver?: (squareName: string) => void;
@@ -26,6 +31,7 @@ function Square({
   color,
   piece,
   onMouseDown,
+  onDragStart,
   onDragEnd,
   onDrop,
   onDragOver,
@@ -36,9 +42,20 @@ function Square({
   isCaptureHint,
   squaresize,
 }: SquareProps) {
-  const className = `${color} square ${isHighlighted ? 'highlight' : ''} ${
-    isLegalMove ? 'legal-move' : ''
-  } ${isCaptureHint ? 'capture-hint' : ''}`;
+  const squareColor = color === 'light' ? 'light' : 'dark';
+  const isSquareHighlighted = isHighlighted ? 'highlight' : '';
+  const isSquareLegalMove = isLegalMove ? 'legal-move' : '';
+  const isSquareCaptureHint = isCaptureHint ? 'capture-hint' : '';
+  const className = [
+    squareColor,
+    'square',
+    isSquareHighlighted,
+    isSquareLegalMove,
+    isSquareCaptureHint,
+    isSelected ? 'selected' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -63,6 +80,11 @@ function Square({
           piece={piece}
           onMouseDown={onMouseDown}
           onDragEnd={onDragEnd}
+          onDragStart={
+            onDragStart
+              ? (e) => onDragStart(e, piece, e.currentTarget)
+              : undefined
+          }
         />
       )}
     </div>
