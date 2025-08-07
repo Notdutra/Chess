@@ -48,6 +48,7 @@ export class ChessEngine {
       halfMoveCounter: 0,
       fullMoveCounter: 1,
       lastMoves: [],
+      gameMode: 'human',
     };
   }
 

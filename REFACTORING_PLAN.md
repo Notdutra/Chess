@@ -154,12 +154,39 @@ We've created a `ChessEngine` class that:
 - ✅ Fixed visual feedback during drag operations
 - ❌ Need to implement all chess move logic in ChessEngine
 - ✅ Updated Square and Piece components
+- ✅ Migrated from Vite to Next.js
 - ❌ Need to add tests
 
 ## Next Steps
 
 1. Complete the implementation of all move logic in ChessEngine
-2. Update Square and Piece components to work with the new architecture
+2. Update any remaining components to work with the new Next.js architecture
 3. Add unit tests for ChessEngine
 4. Integrate with the existing application
 5. Conduct comprehensive testing
+
+## Migration to Next.js
+
+The project has been successfully migrated from Vite to Next.js with the following changes:
+
+### Changes Made:
+
+- ✅ Updated `package.json` with Next.js dependencies
+- ✅ Created Next.js configuration (`next.config.js`) with GitHub Pages support
+- ✅ Created Next.js pages structure (`pages/_app.tsx`, `pages/_document.tsx`, `pages/index.tsx`)
+- ✅ Updated TypeScript configuration for Next.js
+- ✅ Created Next.js environment types file (`next-env.d.ts`)
+- ✅ Updated ESLint configuration for Next.js
+- ✅ Moved assets to Next.js `public/` directory structure
+- ✅ Updated asset paths in components to use Next.js public folder
+- ✅ Removed Vite-specific files (`vite.config.js`, `index.html`, `src/main.tsx`)
+- ✅ Updated task configuration for Next.js
+
+### Benefits of Next.js Migration:
+
+- Better SEO support with server-side rendering capabilities
+- Improved build optimization and code splitting
+- Better developer experience with hot reloading
+- Enhanced production deployment options
+- Built-in TypeScript support
+- Better static asset handling

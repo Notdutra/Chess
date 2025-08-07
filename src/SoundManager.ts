@@ -1,3 +1,5 @@
+import { getBasePath } from './utils/paths';
+
 class SoundManager {
   audioContext: AudioContext;
   sounds: Record<string, AudioBuffer>;
@@ -26,7 +28,8 @@ class SoundManager {
   }
 
   async _preloadFirstSound(): Promise<void> {
-    const firstSoundPath = '/Chess-game/sounds/playerMove.mp3';
+    const basePath = getBasePath();
+    const firstSoundPath = `${basePath}/sounds/playerMove.mp3`;
     try {
       const response = await fetch(firstSoundPath);
       const arrayBuffer = await response.arrayBuffer();
@@ -43,16 +46,17 @@ class SoundManager {
   }
 
   async loadSounds(): Promise<void> {
+    const basePath = getBasePath();
     const soundEntries = Object.entries({
-      capture: '/Chess-game/sounds/capture.mp3',
-      castle: '/Chess-game/sounds/castle.mp3',
-      check: '/Chess-game/sounds/check.mp3',
-      gameEnd: '/Chess-game/sounds/gameEnd.mp3',
-      gameStart: '/Chess-game/sounds/gameStart.mp3',
-      illegalMove: '/Chess-game/sounds/illegalMove.mp3',
-      opponentMove: '/Chess-game/sounds/opponentMove.mp3',
-      playerMove: '/Chess-game/sounds/playerMove.mp3',
-      promote: '/Chess-game/sounds/promote.mp3',
+      capture: `${basePath}/sounds/capture.mp3`,
+      castle: `${basePath}/sounds/castle.mp3`,
+      check: `${basePath}/sounds/check.mp3`,
+      gameEnd: `${basePath}/sounds/gameEnd.mp3`,
+      gameStart: `${basePath}/sounds/gameStart.mp3`,
+      illegalMove: `${basePath}/sounds/illegalMove.mp3`,
+      opponentMove: `${basePath}/sounds/opponentMove.mp3`,
+      playerMove: `${basePath}/sounds/playerMove.mp3`,
+      promote: `${basePath}/sounds/promote.mp3`,
     });
 
     for (const [name, path] of soundEntries) {

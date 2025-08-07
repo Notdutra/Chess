@@ -1,5 +1,4 @@
 import './App.css';
-import Chessboard from './components/Chessboard';
 import ChessboardRefactored from './components/ChessboardRefactored';
 import React from 'react';
 

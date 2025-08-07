@@ -66,6 +66,7 @@ const ChessboardRefactored = () => {
     gameState.checkmate,
     gameState.whiteKingInCheck,
     gameState.blackKingInCheck,
+    gameState.lastMoves,
   ]);
 
   // Sound setup

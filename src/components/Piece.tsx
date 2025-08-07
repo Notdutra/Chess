@@ -1,31 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import './Piece.css';
-import BR from '../assets/pieces/BR.png';
-import BN from '../assets/pieces/BN.png';
-import BB from '../assets/pieces/BB.png';
-import BQ from '../assets/pieces/BQ.png';
-import BK from '../assets/pieces/BK.png';
-import BP from '../assets/pieces/BP.png';
-import WR from '../assets/pieces/WR.png';
-import WN from '../assets/pieces/WN.png';
-import WB from '../assets/pieces/WB.png';
-import WQ from '../assets/pieces/WQ.png';
-import WK from '../assets/pieces/WK.png';
-import WP from '../assets/pieces/WP.png';
+import { getBasePath } from '../utils/paths';
 
-const pieceImages: Record<string, string> = {
-  BR,
-  BN,
-  BB,
-  BQ,
-  BK,
-  BP,
-  WR,
-  WN,
-  WB,
-  WQ,
-  WK,
-  WP,
+const getPieceImages = (): Record<string, string> => {
+  const basePath = getBasePath();
+  return {
+    BR: `${basePath}/pieces/BR.png`,
+    BN: `${basePath}/pieces/BN.png`,
+    BB: `${basePath}/pieces/BB.png`,
+    BQ: `${basePath}/pieces/BQ.png`,
+    BK: `${basePath}/pieces/BK.png`,
+    BP: `${basePath}/pieces/BP.png`,
+    WR: `${basePath}/pieces/WR.png`,
+    WN: `${basePath}/pieces/WN.png`,
+    WB: `${basePath}/pieces/WB.png`,
+    WQ: `${basePath}/pieces/WQ.png`,
+    WK: `${basePath}/pieces/WK.png`,
+    WP: `${basePath}/pieces/WP.png`,
+  };
 };
 
 interface PieceProps {
@@ -59,6 +51,7 @@ const Piece: React.FC<PieceProps> = ({
 }) => {
   const [localIsDragging, setLocalIsDragging] = useState(false);
   const isDragging = propIsDragging || localIsDragging;
+  const pieceImages = getPieceImages();
   const pieceImage = piece ? pieceImages[piece.slice(0, 2)] : undefined;
 
   const className = [
