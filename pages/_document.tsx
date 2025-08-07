@@ -9,7 +9,7 @@ class MyDocument extends Document {
           <link
             rel="icon"
             type="image/svg+xml"
-            href="/vite.svg"
+            href="/favicon.svg"
           />
         </Head>
         <body>
