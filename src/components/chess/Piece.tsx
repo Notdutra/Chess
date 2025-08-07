@@ -68,7 +68,6 @@ const Piece: React.FC<PieceProps> = ({
 
     // Use the passed squareName prop directly
     const currentSquare = squareName || e.currentTarget.parentElement?.id || '';
-    console.log(`Drag started from: ${currentSquare} with piece: ${piece}`);
 
     try {
       // Set drag image
@@ -84,12 +83,8 @@ const Piece: React.FC<PieceProps> = ({
       // Critical: set the data first thing
       e.dataTransfer.setData('text/plain', currentSquare);
       e.dataTransfer.setData('application/chess-piece', piece);
-
-      console.log(
-        `Set dataTransfer with fromSquare=${currentSquare}, piece=${piece}`
-      );
     } catch (error) {
-      console.error('Error setting drag data:', error);
+      // ignore drag image errors
     }
 
     if (onDragStart) {

@@ -1,7 +1,7 @@
 const stockfish = new Worker('stockfish.js');
 
 stockfish.onmessage = function (event: MessageEvent) {
-  console.log(event.data);
+  // ...existing code...
 };
 
 export function sendCommand(command: string): void {

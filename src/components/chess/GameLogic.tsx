@@ -52,7 +52,7 @@ export function handleSquareClick(clickedSquare: string, gameState: any) {
   } = gameState;
   player = currentPlayer;
   let piece = squareHasPiece(clickedSquare, boardArray);
-  console.log(`🟡 Square clicked: ${clickedSquare}, Piece: ${piece}`);
+  // ...existing code...
 
   let pieceColor = piece ? getPieceColor(piece) : null;
   const currentPlayerInfo = getPlayerInfo(boardArray, currentPlayer);
@@ -357,7 +357,7 @@ export function redoLastMove(
 
 function checkGameStatus() {
   if (checkmate) {
-    console.log(`Checkmate ${winner} won`);
+    // ...existing code...
     soundManager.play('check');
     setTimeout(() => {
       soundManager.play('gameEnd');
@@ -416,9 +416,9 @@ function getPiecePosition(
 
 function endGame(type: string) {
   if (type === 'checkmate') {
-    console.log(`Game Over - Checkmate player ${winner} won 2`);
+    // ...existing code...
   } else if (type === 'stalemate') {
-    console.log('Game Over - Stalemate');
+    // ...existing code...
   }
 }
 

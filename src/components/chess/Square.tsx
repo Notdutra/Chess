@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import Piece from './Piece';
-// import './Square.css';
 
 interface SquareProps {
   squareName: string;
@@ -88,10 +87,6 @@ function Square({
     // Get the source square from dataTransfer
     const fromSquare = e.dataTransfer.getData('text/plain');
     const piece = e.dataTransfer.getData('application/chess-piece');
-
-    console.log(
-      `Drop event on square: ${squareName}, from square: ${fromSquare}, piece: ${piece}`
-    );
 
     onDrop?.(e);
   };

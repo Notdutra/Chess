@@ -240,12 +240,12 @@ const Chessboard = () => {
   // Handle square click
   let sameSquareCounter: number = 0;
   const handleSquareClick = (squareName: string) => {
-    console.log(sameSquareCounter);
+    // ...existing code...
 
     if (isDragging) return; // Prevent click logic during drag
     if (gameState.currentPlayer !== playerRef.current) return;
 
-    console.log(`Handling click on square: ${squareName}`);
+    // ...existing code...
 
     // If we already have a selected square, try to make a move
     if (gameState.selectedSquare) {
@@ -255,11 +255,11 @@ const Chessboard = () => {
       // Don't do anything if clicking the same square twice
       if (fromSquare === toSquare) {
         sameSquareCounter++;
-        console.log(sameSquareCounter);
+        // ...existing code...
 
         // Deselect
         if (sameSquareCounter > 1) {
-          console.log(`Deselecting square: ${fromSquare}`);
+          // ...existing code...
 
           const updatedGameState = { ...gameState };
           updatedGameState.selectedSquare = null;
@@ -391,7 +391,7 @@ const Chessboard = () => {
     if (gameState.checkmate || gameState.stalemate) return;
 
     try {
-      console.log('Making bot move...');
+      // ...existing code...
       // This is a placeholder for AI logic
       // In a real game, you would call your AI engine here
     } catch (error) {
@@ -405,7 +405,7 @@ const Chessboard = () => {
     piece: string,
     fromSquare: string
   ) => {
-    console.log('Mouse down on piece:', piece, 'from', fromSquare);
+    // ...existing code...
     e.preventDefault();
     e.stopPropagation();
 
@@ -494,7 +494,7 @@ const Chessboard = () => {
   // Handle piece drop
   const handleDrop = (dropSquare: string) => {
     const fromSquare = draggingFromSquareRef.current;
-    console.log(`Handling drop: from ${fromSquare} to ${dropSquare}`);
+    // ...existing code...
 
     if (!fromSquare) {
       console.error('No fromSquare in draggingFromSquareRef!');

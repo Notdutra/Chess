@@ -1,4 +1,4 @@
-import '../../styles/App.css';
+// ...existing imports...
 import Chessboard from '../../components/chess/Chessboard';
 import React from 'react';
 
