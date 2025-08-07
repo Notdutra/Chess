@@ -1,4 +1,4 @@
-import soundManager from '../SoundManager';
+import soundManager from '../../services/SoundManager';
 
 const boardLetters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 

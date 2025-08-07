@@ -1,13 +1,13 @@
-import './App.css';
-import ChessboardRefactored from './components/ChessboardRefactored';
+// ...existing imports...
+import Chessboard from '../../components/chess/Chessboard';
 import React from 'react';
 
 const App: React.FC = () => {
   return (
     <>
       <div className="app-container">
-        <h1>Refactored Chess Game</h1>
-        <ChessboardRefactored />
+        <h1>Chess Game</h1>
+        <Chessboard />
       </div>
     </>
   );

@@ -1,19 +1,16 @@
 import React, { useEffect, useState, useRef, MouseEvent } from 'react';
-import './Chessboard.css';
-import './Piece.css';
-import './Square.css';
 
 import Square from './Square';
-import { ChessEngineInstance } from '../logic/ChessEngine';
-import { GameState } from '../models/GameState';
-import { PieceColor } from '../models/Piece';
-import soundManager from '../SoundManager';
+import { ChessEngineInstance } from '../../logic/ChessEngine';
+import { GameState } from '../../models/GameState';
+import { PieceColor } from '../../models/Piece';
+import soundManager from '../../services/SoundManager';
 
 // Board letters and numbers for algebraic notation
 const boardLetters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 const boardNumbers = ['8', '7', '6', '5', '4', '3', '2', '1'];
 
-const ChessboardRefactored = () => {
+const Chessboard = () => {
   // Use a single gameState object managed by the chess engine
   const [gameState, setGameState] = useState<GameState>(
     ChessEngineInstance.getGameState()
@@ -314,7 +311,6 @@ const ChessboardRefactored = () => {
       const pieceColor = piece[0] === 'W' ? 'white' : 'black';
       if (pieceColor === gameState.currentPlayer) {
         // Play a subtle selection sound
-        soundManager.play('playerMove', 0.3);
 
         const updatedGameState = { ...gameState };
         updatedGameState.selectedSquare = squareName;
@@ -675,4 +671,4 @@ const ChessboardRefactored = () => {
   );
 };
 
-export default ChessboardRefactored;
+export default Chessboard;

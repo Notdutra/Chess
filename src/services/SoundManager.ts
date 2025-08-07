@@ -1,4 +1,4 @@
-import { getBasePath } from './utils/paths';
+import { getBasePath } from '../utils/paths';
 
 class SoundManager {
   audioContext: AudioContext;

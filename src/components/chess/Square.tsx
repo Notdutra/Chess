@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import './Square.css';
 import Piece from './Piece';
+// import './Square.css';
 
 interface SquareProps {
   squareName: string;

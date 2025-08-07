@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import './Piece.css';
-import { getBasePath } from '../utils/paths';
+import { getBasePath } from '../../utils/paths';
 
 const getPieceImages = (): Record<string, string> => {
   const basePath = getBasePath();
