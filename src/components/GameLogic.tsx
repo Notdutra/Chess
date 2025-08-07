@@ -154,7 +154,7 @@ export function handleMoveExecution(
         soundManager.play('castle');
         soundPlayed = true;
         const rookIndex = castleSquares.indexOf(clickedSquare);
-        const rookSquare = getPiecePosition(rook[rookIndex]);
+        const rookSquare = getPiecePosition(rook[rookIndex], preMoveBoard);
         const rookDestinationSquare = rookDestination[rookIndex];
         if (rookSquare && rookDestinationSquare) {
           setBoardArray(
@@ -247,7 +247,7 @@ function castleKing(king: string, boardArray: string[][]) {
 
   if (!castleStatus) return false;
 
-  const kingSquare = getPiecePosition(king);
+  const kingSquare = getPiecePosition(king, boardArray);
   if (!kingSquare) return false;
 
   let queenSide: string | null = player === 'white' ? 'Q' : 'q';
@@ -391,10 +391,25 @@ function getAllSafeMovesForPlayer(pieceInfo: any[], boardArray: string[][]) {
   return allSafeMoves;
 }
 
-function getPiecePosition(piece: string): string | null {
-  let pieceEl = document.getElementById(piece);
-  if (pieceEl && pieceEl.parentElement && pieceEl.parentElement.id) {
-    return pieceEl.parentElement.id;
+// Find piece position from the board array instead of DOM
+function getPiecePosition(
+  piece: string,
+  boardArray?: string[][]
+): string | null {
+  // If no boardArray is provided, we cannot determine the position
+  if (!boardArray) {
+    console.error('No board array provided to getPiecePosition');
+    return null;
+  }
+
+  for (let rank = 0; rank < 8; rank++) {
+    for (let file = 0; file < 8; file++) {
+      if (boardArray[rank][file] === piece) {
+        const fileChar = String.fromCharCode('a'.charCodeAt(0) + file);
+        const rankNumber = 8 - rank;
+        return `${fileChar}${rankNumber}`;
+      }
+    }
   }
   return null;
 }
@@ -532,7 +547,7 @@ function pawnEnPassantHandler(
     if (attackPawn.includes(selectedPiece) && attackSquare === toSquare) {
       const [targetRow, targetCol] = getRowAndColumn(enPassantSquare);
       boardArray[8 - targetRow][targetCol] = '';
-      const fromPos = getPiecePosition(selectedPiece);
+      const fromPos = getPiecePosition(selectedPiece, boardArray);
       if (fromPos) {
         boardArray = movePiece(boardArray, fromPos, toSquare);
       }
@@ -543,7 +558,7 @@ function pawnEnPassantHandler(
 
   const color = getPieceColor(selectedPiece);
 
-  const fromSquare = getPiecePosition(selectedPiece);
+  const fromSquare = getPiecePosition(selectedPiece, boardArray);
   if (!fromSquare) return false;
 
   const [fromRow] = getRowAndColumn(fromSquare);

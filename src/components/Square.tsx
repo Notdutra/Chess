@@ -1,88 +1,129 @@
+import React, { useState } from 'react';
 import './Square.css';
 import Piece from './Piece';
 
 interface SquareProps {
   squareName: string;
-  color: string;
+  color: 'light' | 'dark';
   piece?: string;
-  onMouseDown?: (
+  onPieceMouseDown?: (
     e: React.MouseEvent<HTMLImageElement>,
     piece: string,
-    img: HTMLImageElement
+    squareName: string
   ) => void;
-  onDragStart?: (
+  onPieceDragStart?: (
     e: React.DragEvent<HTMLImageElement>,
     piece: string,
-    img: HTMLImageElement
+    squareName: string
   ) => void;
-  onDragEnd?: React.DragEventHandler<HTMLImageElement>;
-  onDrop?: (e: React.DragEvent<HTMLDivElement>, squareName: string) => void;
-  onDragOver?: (squareName: string) => void;
-  onClick?: (squareName: string) => void;
+  onPieceDragEnd?: (e: React.DragEvent<HTMLImageElement>) => void;
+  onDrop?: (e: React.DragEvent<HTMLDivElement>) => void;
+  onDragOver?: (e: React.DragEvent<HTMLDivElement>) => void;
+  onMouseEnter?: (e: React.MouseEvent<HTMLDivElement>) => void;
+  onMouseLeave?: (e: React.MouseEvent<HTMLDivElement>) => void;
   isSelected?: boolean;
   isHighlighted?: boolean;
   isLegalMove?: boolean;
   isCaptureHint?: boolean;
-  squaresize: number;
+  squareSize: number;
 }
 
 function Square({
   squareName,
   color,
   piece,
-  onMouseDown,
-  onDragStart,
-  onDragEnd,
+  onPieceMouseDown,
+  onPieceDragStart,
+  onPieceDragEnd,
   onDrop,
   onDragOver,
-  onClick,
+  onMouseEnter,
+  onMouseLeave,
   isSelected,
   isHighlighted,
   isLegalMove,
   isCaptureHint,
-  squaresize,
+  squareSize,
 }: SquareProps) {
-  const squareColor = color === 'light' ? 'light' : 'dark';
-  const isSquareHighlighted = isHighlighted ? 'highlight' : '';
-  const isSquareLegalMove = isLegalMove ? 'legal-move' : '';
-  const isSquareCaptureHint = isCaptureHint ? 'capture-hint' : '';
   const className = [
-    squareColor,
+    color,
     'square',
-    isSquareHighlighted,
-    isSquareLegalMove,
-    isSquareCaptureHint,
+    isHighlighted ? 'highlight' : '',
+    isLegalMove ? 'legal-move' : '',
+    isCaptureHint ? 'capture-hint' : '',
     isSelected ? 'selected' : '',
   ]
     .filter(Boolean)
     .join(' ');
 
+  // Handle drag enter to add visual feedback
+  const [isDragOver, setIsDragOver] = useState(false);
+
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    // This is critical to enable drop
     e.preventDefault();
-    onDragOver?.(squareName);
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = 'move';
+    if (!isDragOver) setIsDragOver(true);
+    onDragOver?.(e);
   };
 
+  const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault(); // Prevent default to allow drop
+    e.stopPropagation();
+    setIsDragOver(false);
+
+    // Get the source square from dataTransfer
+    const fromSquare = e.dataTransfer.getData('text/plain');
+    const piece = e.dataTransfer.getData('application/chess-piece');
+
+    console.log(
+      `Drop event on square: ${squareName}, from square: ${fromSquare}, piece: ${piece}`
+    );
+
+    onDrop?.(e);
+  };
   return (
     <div
       id={squareName}
-      className={className}
+      className={`${className} ${isDragOver ? 'drag-over' : ''}`}
       onDragOver={handleDragOver}
-      onDrop={(e) => onDrop?.(e, squareName)}
-      onClick={() => onClick?.(squareName)}
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
       style={
         {
-          '--border-width': `${(squaresize * 8.889) / 100}px`,
-          '--hover-border-width': `${(squaresize * 5) / 100}px`,
+          '--border-width': `${(squareSize * 8.889) / 100}px`,
+          '--hover-border-width': `${(squareSize * 5) / 100}px`,
         } as React.CSSProperties
       }>
       {piece && (
         <Piece
           piece={piece}
-          onMouseDown={onMouseDown}
-          onDragEnd={onDragEnd}
+          squareName={squareName}
+          onMouseDown={
+            onPieceMouseDown
+              ? (e) => onPieceMouseDown(e, piece, squareName)
+              : undefined
+          }
+          onDragEnd={onPieceDragEnd}
           onDragStart={
-            onDragStart
-              ? (e) => onDragStart(e, piece, e.currentTarget)
+            onPieceDragStart
+              ? (e) => onPieceDragStart(e, piece, squareName)
               : undefined
           }
         />

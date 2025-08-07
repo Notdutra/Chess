@@ -1,17 +1,16 @@
 import './App.css';
-import Chessboard from './components/Chessboard';
 import ChessboardRefactored from './components/ChessboardRefactored';
 import React from 'react';
 
-const App: React.FC = () => {
+const AppDev: React.FC = () => {
   return (
     <>
       <div className="app-container">
-        <h1>Refactored Chess Game</h1>
+        <h1>Chess Game (Refactored)</h1>
         <ChessboardRefactored />
       </div>
     </>
   );
 };
 
-export default App;
+export default AppDev;

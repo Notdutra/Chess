@@ -72,7 +72,13 @@ class SoundManager {
     }
   }
 
-  async play(sound: string, volume: number = 1.5): Promise<void> {
+  async play(
+    sound: string,
+    volume: number = 1.5,
+    delay: number = 0
+  ): Promise<void> {
+    await this._ensureAudioContextReady();
+
     const audioBuffer = this.sounds[sound];
     if (!audioBuffer) {
       console.error(`Sound "${sound}" not loaded.`);
@@ -85,7 +91,28 @@ class SoundManager {
     this.gainNodes[sound].gain.value = volume * this.globalVolume;
     this.gainNodes[sound].connect(this.destination);
 
-    source.start(0);
+    // Use current time plus delay for precise timing
+    source.start(this.audioContext.currentTime + delay);
+
+    // Return a promise that resolves when the sound finishes playing
+    return new Promise((resolve) => {
+      source.onended = () => resolve();
+      // Also resolve after the expected duration plus a small buffer
+      setTimeout(resolve, audioBuffer.duration * 1000 + 100);
+    });
+  }
+
+  /**
+   * Play multiple sounds in sequence with precise timing
+   */
+  async playSequence(
+    sounds: Array<{ name: string; volume?: number; delay?: number }>
+  ): Promise<void> {
+    let totalDelay = 0;
+    for (const sound of sounds) {
+      await this.play(sound.name, sound.volume || 1.5, totalDelay);
+      totalDelay += sound.delay || 0.2; // Default 200ms between sounds
+    }
   }
 
   setGlobalVolume(volume: number): void {
@@ -97,6 +124,104 @@ class SoundManager {
       gainNode.gain.value = volume;
     }
   }
+
+  /**
+   * Play appropriate sound for a move based on move type
+   */
+  playMoveSound(
+    moveType:
+      | 'normal'
+      | 'capture'
+      | 'castle'
+      | 'promotion'
+      | 'en-passant'
+      | 'check'
+      | 'checkmate'
+      | 'illegal'
+  ): void {
+    switch (moveType) {
+      case 'capture':
+        this.play('capture', 1.7);
+        break;
+      case 'castle':
+        this.play('castle', 1.5);
+        break;
+      case 'promotion':
+        this.play('promote', 1.6);
+        break;
+      case 'check':
+        this.play('check', 1.7);
+        break;
+      case 'checkmate':
+        this.playSequence([
+          { name: 'check', volume: 1.5 },
+          { name: 'gameEnd', volume: 1.8, delay: 0.3 },
+        ]);
+        break;
+      case 'illegal':
+        this.play('illegalMove', 1.0);
+        break;
+      case 'en-passant':
+        this.play('capture', 1.6);
+        break;
+      case 'normal':
+      default:
+        this.play('playerMove', 1.5);
+        break;
+    }
+  }
+
+  /**
+   * Play contextual game state sounds
+   */
+  playGameStateSound(state: 'start' | 'end' | 'draw'): void {
+    switch (state) {
+      case 'start':
+        this.play('gameStart', 1.7);
+        break;
+      case 'end':
+        this.play('gameEnd', 1.7);
+        break;
+      case 'draw':
+        this.play('gameEnd', 1.3);
+        break;
+    }
+  }
+
+  /**
+   * Play a very subtle hover sound effect when hovering over chess pieces
+   */
+  playHoverSound(volume: number = 0.08): void {
+    if (!this.sounds['playerMove']) return;
+
+    // Don't play the hover sound too frequently
+    const now = Date.now();
+    if (now - (this._lastHoverSound || 0) < 150) return;
+    this._lastHoverSound = now;
+
+    const source = this.audioContext.createBufferSource();
+    source.buffer = this.sounds['playerMove'];
+
+    // Create a gain node for this specific sound
+    const gainNode = this.audioContext.createGain();
+    gainNode.gain.value = volume * this.globalVolume * 0.3; // Very low volume
+
+    // Create a filter for higher pitch
+    const filter = this.audioContext.createBiquadFilter();
+    filter.type = 'highpass';
+    filter.frequency.value = 2000;
+
+    // Connect the nodes
+    source.connect(filter);
+    filter.connect(gainNode);
+    gainNode.connect(this.destination);
+
+    // Play a very short segment
+    source.start(0, 0, 0.05); // Play only the first 50ms
+  }
+
+  // Track the last time a hover sound was played to prevent sound spamming
+  private _lastHoverSound: number = 0;
 }
 
 const soundManager = new SoundManager();
