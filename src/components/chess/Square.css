@@ -1,0 +1,108 @@
+.selected.light {
+  background-color: rgb(245, 246, 130);
+}
+.selected.dark {
+  background-color: rgb(185, 202, 67);
+}
+
+*::before,
+*,
+*::after {
+  box-sizing: border-box;
+}
+
+:root {
+  --light-square-color: rgb(235, 236, 208);
+  --dark-square-color: rgb(115, 149, 82);
+
+  --dark-square-red-highlight-color: rgb(212, 110, 81);
+  --light-square-red-highlight-color: rgb(237, 126, 106);
+
+  --color-transparent-black-14: rgba(0, 0, 0, 0.14);
+}
+
+/* Each square fills its grid cell and is always proportional */
+.square {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  aspect-ratio: 1 / 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.light {
+  background-color: var(--light-square-color);
+  color: var(--light-square-highlight-color);
+}
+
+.dark {
+  background-color: var(--dark-square-color);
+  color: var(--dark-square-highlight-color);
+}
+.highlight.light {
+  background-color: rgb(245, 245, 140);
+}
+
+.highlight.dark {
+  background-color: rgb(185, 202, 67);
+}
+
+.legal-move.light::before {
+  background-color: rgb(202, 203, 179); /* Circle color for light square */
+  content: '';
+  position: absolute;
+  width: 33.33%;
+  height: 33.33%;
+  border-radius: 50%;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1;
+}
+
+.legal-move.dark::before {
+  background-color: rgb(99, 128, 70); /* Circle color for dark square */
+  content: '';
+  position: absolute;
+  width: 33.33%;
+  height: 33.33%;
+  border-radius: 50%;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1;
+}
+
+.capture-hint::before {
+  content: '';
+  position: absolute;
+  width: 100%; /* Adjust width and height as needed */
+  height: 100%;
+  border-radius: 50%;
+  box-sizing: border-box;
+  border: var(--border-width) solid rgba(0, 0, 0, 0.14); /* Dynamic border width */
+  z-index: 5;
+  top: 0;
+  left: 0;
+  /* pointer-events: none; */
+}
+
+.hover-square {
+  position: relative;
+  --light-square-highlight-color: rgb(245, 245, 140);
+  --dark-square-highlight-color: rgb(186, 201, 73);
+}
+
+.hover-square::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: var(--hover-border-width) solid rgba(255, 255, 255, 0.65);
+  box-sizing: border-box;
+  pointer-events: none;
+}
