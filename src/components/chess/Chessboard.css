@@ -1,3 +1,8 @@
+/* Force grab cursor after click-to-capture */
+body.force-grab,
+body.force-grab * {
+  cursor: grab !important;
+}
 .container {
   display: flex;
   justify-content: center;

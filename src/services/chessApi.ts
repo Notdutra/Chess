@@ -124,9 +124,9 @@ export class ChessApi {
 
       const message = {
         fen: fen,
-        depth: this.options.depth || 10, // Reduced from 12 to 10 for faster response
+        depth: this.options.depth || 2, // Reduced from 12 to 2 for faster response
         variants: this.options.variants || 1,
-        maxThinkingTime: this.options.maxThinkingTime || 30, // Reduced from 50 to 30 seconds
+        maxThinkingTime: this.options.maxThinkingTime || 10, // Reduced from 50 to 10 seconds
       };
 
       // Add timeout to prevent bot from getting stuck thinking

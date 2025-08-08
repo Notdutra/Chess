@@ -50,6 +50,20 @@ const Piece: React.FC<PieceProps> = ({
 }) => {
   const [localIsDragging, setLocalIsDragging] = useState(false);
   const isDragging = propIsDragging || localIsDragging;
+
+  // Reset local drag state if parent disables dragging
+  useEffect(() => {
+    if (!propIsDragging && localIsDragging) {
+      setLocalIsDragging(false);
+    }
+  }, [propIsDragging, localIsDragging]);
+
+  // Debug: log when Piece unmounts
+  useEffect(() => {
+    return () => {
+      console.log('[Piece] unmounted', piece, squareName);
+    };
+  }, [piece, squareName]);
   const pieceImages = getPieceImages();
   const pieceImage = piece ? pieceImages[piece.slice(0, 2)] : undefined;
 
@@ -107,17 +121,15 @@ const Piece: React.FC<PieceProps> = ({
       data-square={squareName} // Add data attribute for square name
       src={pieceImage}
       alt={piece}
-      draggable={true}
+      draggable={false}
       style={{
         userSelect: 'none',
         touchAction: 'none',
-        cursor: 'grab',
+        cursor: isDragging ? 'grabbing' : 'inherit',
       }}
       onMouseDown={(e) =>
         onMouseDown && onMouseDown(e, piece, squareName || '')
       }
-      onDragEnd={handleDragEnd}
-      onDragStart={handleDragStart}
     />
   ) : null;
 };

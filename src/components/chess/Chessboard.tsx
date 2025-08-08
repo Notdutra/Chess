@@ -1,10 +1,4 @@
-import React, {
-  useEffect,
-  useState,
-  useRef,
-  MouseEvent,
-  useCallback,
-} from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { getValidMoves, executeMove } from './GameLogic';
 
 import Square from './Square';
@@ -31,7 +25,7 @@ const Chessboard = () => {
       customDragImage.style.top = `${evt.clientY - pieceHeight / 2}px`;
     }
 
-    // Handle hover effect on squares
+    // Handle hover effect on squares (React state only)
     const dropTarget = document.elementFromPoint(evt.clientX, evt.clientY);
     let currentSquareId: string | null = null;
 
@@ -43,30 +37,8 @@ const Chessboard = () => {
       }
     }
 
-    // If hovering over a new square, update classes
-    if (currentSquareId !== lastHoveredSquareRef.current) {
-      // Remove class from previously hovered square
-      if (lastHoveredSquareRef.current) {
-        const prevSquareEl = document.getElementById(
-          lastHoveredSquareRef.current
-        );
-        if (prevSquareEl) {
-          prevSquareEl.classList.remove('drag-over');
-        }
-      }
-
-      // Add class to the new square if it's a valid move
-      if (
-        currentSquareId &&
-        validSquaresRef.current.includes(currentSquareId)
-      ) {
-        const newSquareEl = document.getElementById(currentSquareId);
-        if (newSquareEl) {
-          newSquareEl.classList.add('drag-over');
-        }
-      }
-
-      lastHoveredSquareRef.current = currentSquareId;
+    if (currentSquareId !== hoveredSquare) {
+      setHoveredSquare(currentSquareId);
     }
   };
   // Restore missing refs for drag and hover logic
@@ -84,8 +56,32 @@ const Chessboard = () => {
   // UI specific state
   const [squareSize, setSquareSize] = useState<number>(60); // Default size
   const [isDragging, setIsDragging] = useState<boolean>(false);
+  // Debug: wrap setIsDragging to log changes
+  const setIsDraggingDebug = (val: boolean) => {
+    console.log('[setIsDragging]', val, new Error().stack.split('\n')[2]);
+    setIsDragging(val);
+  };
+  const isDraggingRef = useRef(isDragging);
+  useEffect(() => {
+    isDraggingRef.current = isDragging;
+  }, [isDragging]);
   const [isBotThinking, setIsBotThinking] = useState<boolean>(false);
+  const [hoveredSquare, setHoveredSquare] = useState<string | null>(null);
   const draggingPieceRef = useRef<string | null>(null);
+  // Debug: wrap draggingPieceRef setter
+  const setDraggingPieceRef = (val: string | null) => {
+    console.log('[setDraggingPieceRef]', val, new Error().stack.split('\n')[2]);
+    draggingPieceRef.current = val;
+  };
+  // Debug: wrap draggingFromSquareRef setter
+  const setDraggingFromSquareRef = (val: string | null) => {
+    console.log(
+      '[setDraggingFromSquareRef]',
+      val,
+      new Error().stack.split('\n')[2]
+    );
+    draggingFromSquareRef.current = val;
+  };
   const chessApiRef = useRef<ChessApi | null>(null);
   // Execute bot move received from API
   // Always use the latest state for bot move
@@ -117,9 +113,78 @@ const Chessboard = () => {
       }
 
       if (moveResult && moveResult.updatedGameState) {
+        // DEBUG: Log drag/bot move state before mouseup dispatch
+        console.log(
+          '[executeBotMove] isDraggingRef:',
+          isDraggingRef.current,
+          'draggingFromSquareRef:',
+          draggingFromSquareRef.current,
+          'botToSquare:',
+          to,
+          'botMoveType:',
+          moveResult.moveResult?.moveType
+        );
+        // Clean up any active user drag state when bot makes a move
+        const botToSquare = to;
+        const botMoveType = moveResult.moveResult?.moveType;
+        const userDragging =
+          isDraggingRef.current && draggingFromSquareRef.current;
+
+        // Only clear drag state if bot captured the dragged piece
+        if (
+          userDragging &&
+          (botMoveType === 'capture' || botMoveType === 'en-passant') &&
+          botToSquare === draggingFromSquareRef.current
+        ) {
+          console.log(
+            '[executeBotMove] Bot captured dragged piece - clearing drag state'
+          );
+          // Clear drag state since the piece was captured
+          setIsDragging(false);
+          draggingPieceRef.current = null;
+          draggingFromSquareRef.current = null;
+          setHoveredSquare(null);
+          document.body.style.cursor = 'grab';
+          // Remove any lingering drag image and .dragging class
+          document
+            .querySelectorAll('.custom-drag-image')
+            .forEach((el) => el.remove());
+          document.querySelectorAll('.dragging').forEach((el) => {
+            el.classList.remove('dragging');
+          });
+          window.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+        } else {
+          console.log(
+            '[executeBotMove] Preserving drag state: moveType',
+            botMoveType,
+            'botToSquare',
+            botToSquare,
+            'draggingFrom',
+            draggingFromSquareRef.current
+          );
+          // Don't clear drag state - user can continue dragging for premove
+        }
+
         setGameState(moveResult.updatedGameState);
         ChessEngineInstance.setGameState(moveResult.updatedGameState);
-        soundManager.playMoveSound('normal');
+        // Play only the most important sound for the bot move
+        const result = moveResult.moveResult;
+        if (result.isCheckMate) {
+          soundManager.playMoveSound('checkmate');
+        } else if (result.isCheck) {
+          soundManager.playMoveSound('check');
+        } else if (
+          result.moveType === 'capture' ||
+          result.moveType === 'en-passant'
+        ) {
+          soundManager.playMoveSound('capture');
+        } else if (result.moveType === 'castle') {
+          soundManager.playMoveSound('castle');
+        } else if (result.moveType === 'promotion') {
+          soundManager.playMoveSound('promotion');
+        } else {
+          soundManager.playMoveSound('normal');
+        }
       } else {
         console.error('Bot move could not be executed:', moveString);
       }
@@ -315,7 +380,7 @@ const Chessboard = () => {
 
       // Check if the clicked square is a valid move
       if (gameState.validMoves.includes(toSquare)) {
-        handleDrop(toSquare); // Use handleDrop for move logic
+        handleDrop(toSquare, gameState.selectedSquare); // Pass fromSquare for click-to-move
       } else {
         // Check if the square has a piece of the current player
         const targetPiece = ChessEngineInstance.getPieceAtPosition(squareName);
@@ -327,15 +392,13 @@ const Chessboard = () => {
           // If clicking on another piece of the same player, select that piece
           selectSquare(squareName);
         } else {
-          // Play illegal move sound for invalid moves
-          soundManager.playMoveSound('illegal');
-
-          // Deselect current piece
-          const updatedGameState = { ...gameState };
-          updatedGameState.selectedSquare = null;
-          updatedGameState.validMoves = [];
-          updatedGameState.highlightedSquares = [];
-          setGameState(updatedGameState);
+          // Deselect current piece (force state update)
+          setGameState((prev) => ({
+            ...prev,
+            selectedSquare: null,
+            validMoves: [],
+            highlightedSquares: [],
+          }));
         }
       }
     } else {
@@ -418,59 +481,131 @@ const Chessboard = () => {
     piece: string,
     fromSquare: string
   ) => {
-    // ...existing code...
     e.preventDefault();
     e.stopPropagation();
+    if (!fromSquare) return;
 
-    const currentPieceColor = piece[0] === 'W' ? 'white' : 'black';
-    if (
-      currentPieceColor !== gameState.currentPlayer ||
-      currentPieceColor !== playerRef.current
-    ) {
+    // --- Click-to-move/capture: if this is a valid move, do NOT start drag simulation ---
+    if (gameState.selectedSquare && gameState.validMoves.includes(fromSquare)) {
+      handleDrop(fromSquare, gameState.selectedSquare);
+      // Clean up drag state and image immediately after move
+      setIsDragging(false);
+      draggingPieceRef.current = null;
+      draggingFromSquareRef.current = null;
+      setHoveredSquare(null);
+      // Remove any drag image and .dragging class
+      const pieceElement = e.target as HTMLImageElement;
+      document.body.classList.remove('dragging');
+      document.body.classList.add('force-grab'); // Force grab cursor
+      pieceElement.classList.remove('dragging');
+      // Force cursor on piece element as well (with !important)
+      pieceElement.style.setProperty('cursor', 'grab', 'important');
+      // Remove any custom drag image
+      const dragImages = document.querySelectorAll(
+        'img[style*="position: fixed"]'
+      );
+      dragImages.forEach((img) => img.remove());
+      // Remove any pending drag event listeners to prevent further drag
+      document.removeEventListener('mousemove', mouseMoveListener);
+      document.removeEventListener('mouseup', mouseUpListener);
+      // Remove force-grab and reset piece cursor on next mouseup anywhere
+      const removeForceGrab = () => {
+        document.body.classList.remove('force-grab');
+        pieceElement.style.removeProperty('cursor');
+        window.removeEventListener('mouseup', removeForceGrab);
+      };
+      window.addEventListener('mouseup', removeForceGrab);
       return;
     }
 
-    if (!fromSquare) return;
-
-    // Select the square if not already selected
-    if (gameState.selectedSquare !== fromSquare) {
-      selectSquare(fromSquare);
-    }
-
-    lastMouseDownSquare.current = fromSquare;
-    draggingPieceRef.current = piece;
-    draggingFromSquareRef.current = fromSquare;
-
-    // Hide the original piece and show custom drag image
+    // Always trigger grab simulation on mouse down (for drag)
     const pieceElement = e.target as HTMLImageElement;
+    document.body.classList.add('dragging');
+    document.body.style.cursor = 'grabbing';
+    // Set hovered square to the square being picked up
+    setHoveredSquare(fromSquare);
 
-    // Create and style the drag image - keep it simple
-    const dragImage = pieceElement.cloneNode(true) as HTMLImageElement;
-
-    // Clear all styles and classes to avoid conflicts
+    // --- Grab simulation: show drag image immediately and hide original ---
+    let dragImage: HTMLImageElement | null = null;
+    let dragStarted = false;
+    const rect = pieceElement.getBoundingClientRect();
+    dragImage = pieceElement.cloneNode(true) as HTMLImageElement;
     dragImage.removeAttribute('class');
     dragImage.removeAttribute('style');
-
-    // Set basic drag image properties
-    const rect = pieceElement.getBoundingClientRect();
     dragImage.style.cssText = `
       position: fixed;
       pointer-events: none;
       z-index: 9999;
       width: ${rect.width}px;
       height: ${rect.height}px;
-      left: ${rect.left}px;
-      top: ${rect.top}px;
+      left: ${e.clientX - rect.width / 2}px;
+      top: ${e.clientY - rect.height / 2}px;
       object-fit: contain;
+      opacity: 1;
     `;
-
+    // Set hovered square in state for highlight
+    const squareEl = pieceElement.closest('.square');
+    if (squareEl && squareEl.id) {
+      setHoveredSquare(squareEl.id);
+    }
     document.body.appendChild(dragImage);
-    // Hide the original piece visually (but not with display:none, to keep layout)
     pieceElement.classList.add('dragging');
-    setIsDragging(true);
 
-    // Position the drag image
+    // If a piece is selected and this square is a legal move, treat as click-to-move
+    if (gameState.selectedSquare && gameState.validMoves.includes(fromSquare)) {
+      handleDrop(fromSquare, gameState.selectedSquare);
+      // Clean up drag state and image immediately after move
+      setIsDragging(false);
+      draggingPieceRef.current = null;
+      draggingFromSquareRef.current = null;
+      const pieceElement = e.target as HTMLImageElement;
+      document.body.classList.add('dragging');
+      document.body.style.cursor = 'grabbing';
+      document.body.style.cursor = '';
+      // Remove any pending drag event listeners to prevent further drag
+      document.removeEventListener('mousemove', mouseMoveListener);
+      document.removeEventListener('mouseup', mouseUpListener);
+      return;
+    }
+
+    // Otherwise, only select if it's the player's own piece
+    document.body.classList.remove('dragging');
+    document.body.style.cursor = '';
+    const currentPieceColor = piece[0] === 'W' ? 'white' : 'black';
+    if (currentPieceColor === gameState.currentPlayer) {
+      if (gameState.selectedSquare !== fromSquare) {
+        selectSquare(fromSquare);
+      }
+    } else {
+      // Not player's piece: clear selection if needed, but allow drag for fun
+      if (gameState.selectedSquare) {
+        setGameState((prev) => ({
+          ...prev,
+          selectedSquare: null,
+          validMoves: [],
+          highlightedSquares: [],
+        }));
+      }
+    }
+
+    // Always allow drag for fun, regardless of piece color
+    lastMouseDownSquare.current = fromSquare;
+    draggingPieceRef.current = piece;
+    draggingFromSquareRef.current = fromSquare;
+
+    // (removed duplicate declaration)
+
+    const startDrag = (evt: MouseEvent | Event) => {
+      if (dragStarted) return;
+      dragStarted = true;
+      // Only now hide the original piece
+      pieceElement.classList.add('dragging');
+      setIsDragging(true);
+      document.body.classList.add('dragging');
+    };
+
     const updateDragImagePosition = (evt: MouseEvent | Event) => {
+      if (!dragStarted || !dragImage) return;
       const mouseEvt = evt as MouseEvent;
       dragImage.style.left = `${
         mouseEvt.clientX - dragImage.offsetWidth / 2
@@ -480,36 +615,54 @@ const Chessboard = () => {
       }px`;
     };
 
-    // Position the drag image after it's rendered
-    requestAnimationFrame(() => {
-      updateDragImagePosition(e.nativeEvent);
-    });
-
-    // Mousemove handler for drag image
     const dragImageMoveHandler = (evt: Event) => {
+      if (!dragStarted) {
+        startDrag(evt);
+      }
       updateDragImagePosition(evt);
     };
     document.addEventListener('mousemove', dragImageMoveHandler);
 
-    // Mouseup handler to clean up drag image
     const dragImageUpHandler = () => {
-      dragImage.remove();
+      // Remove hover effect from the square
+      setHoveredSquare(null);
+      if (dragImage) dragImage.remove();
+      pieceElement.classList.remove('dragging');
       document.removeEventListener('mousemove', dragImageMoveHandler);
     };
     document.addEventListener('mouseup', dragImageUpHandler, { once: true });
 
-    // Add event listeners for drag behavior
     document.addEventListener('mousemove', mouseMoveListener);
     document.addEventListener('mouseup', mouseUpListener);
-    document.body.classList.add('dragging');
   };
 
-  // Handle piece drop
-  const handleDrop = (dropSquare: string) => {
-    const fromSquare = draggingFromSquareRef.current;
-
+  // Handle piece drop or click-to-move
+  const handleDrop = (dropSquare: string, fromSquareOverride?: string) => {
+    const fromSquare = fromSquareOverride || draggingFromSquareRef.current;
     if (!fromSquare) {
-      console.error('No fromSquare in draggingFromSquareRef!');
+      console.error('No fromSquare in draggingFromSquareRef or argument!');
+      // Always reset cursor and drag state if something goes wrong
+      setIsDragging(false);
+      draggingPieceRef.current = null;
+      draggingFromSquareRef.current = null;
+      document.body.style.cursor = 'grab';
+      return;
+    }
+
+    // Only allow move logic if the piece belongs to the current player
+    const piece = ChessEngineInstance.getPieceAtPosition(fromSquare);
+    const currentPieceColor =
+      piece && piece[0] === 'W'
+        ? 'white'
+        : piece && piece[0] === 'B'
+        ? 'black'
+        : null;
+    if (currentPieceColor !== gameState.currentPlayer) {
+      // Not player's piece: treat as invalid drop, just clean up drag state
+      setIsDragging(false);
+      draggingPieceRef.current = null;
+      draggingFromSquareRef.current = null;
+      document.body.style.cursor = 'grab';
       return;
     }
 
@@ -538,28 +691,60 @@ const Chessboard = () => {
       currentPlayer: updatedGameState.currentPlayer,
     } as any);
 
-    // Play appropriate sound
-    soundManager.playMoveSound(result.moveType);
+    // Play only the most important sound for the move
+    if (result.isCheckMate) {
+      soundManager.playMoveSound('checkmate');
+    } else if (result.isCheck) {
+      soundManager.playMoveSound('check');
+    } else if (
+      result.moveType === 'capture' ||
+      result.moveType === 'en-passant'
+    ) {
+      soundManager.playMoveSound('capture');
+    } else if (result.moveType === 'castle') {
+      soundManager.playMoveSound('castle');
+    } else if (result.moveType === 'promotion') {
+      soundManager.playMoveSound('promotion');
+    } else {
+      soundManager.playMoveSound('normal');
+    }
 
     // Determine bot color on first move if not set
     if (gameState.gameMode === 'ai' && !botColorRef.current) {
       botColorRef.current = updatedGameState.currentPlayer;
     }
 
-    // If playing against computer, make AI move after delay
+    // Clean up drag state BEFORE bot move to prevent interference
+    setIsDragging(false);
+    draggingPieceRef.current = null;
+    draggingFromSquareRef.current = null;
+    document.body.style.cursor = 'grab';
+
+    // If playing against computer, make AI move after drag cleanup
     if (
       gameState.gameMode === 'ai' &&
       botColorRef.current === updatedGameState.currentPlayer
     ) {
-      setTimeout(() => {
-        makeBotMove(updatedGameState);
-      }, 500);
+      makeBotMove(updatedGameState);
     }
 
-    // Clean up drag state
-    setIsDragging(false);
-    draggingPieceRef.current = null;
-    draggingFromSquareRef.current = null;
+    // Remove any lingering drag image and .dragging class
+    document
+      .querySelectorAll('.custom-drag-image')
+      .forEach((el) => el.remove());
+    document
+      .querySelectorAll('.dragging')
+      .forEach((el) => el.classList.remove('dragging'));
+    document.querySelectorAll('img').forEach((img) => {
+      if (img.style.position === 'fixed') img.remove();
+    });
+    // Force mouseup event to end any browser drag
+    window.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+
+    // Force React to update board state immediately after drag cleanup
+    window.requestAnimationFrame(() => {
+      setGameState(updatedGameState);
+    });
   };
 
   // Render a square with its current piece
@@ -585,6 +770,8 @@ const Chessboard = () => {
         isLegalMove={isLegalMove}
         isCaptureHint={isCaptureHint}
         squareSize={squareSize}
+        isDragging={isDragging}
+        isDragOver={hoveredSquare === squareName}
       />
     );
   };
