@@ -1,118 +1,24 @@
-import React, { useEffect, useState, useRef, MouseEvent } from 'react';
+import React, {
+  useEffect,
+  useState,
+  useRef,
+  MouseEvent,
+  useCallback,
+} from 'react';
+import { getValidMoves, executeMove } from './GameLogic';
 
 import Square from './Square';
 import { ChessEngineInstance } from '../../logic/ChessEngine';
 import { GameState } from '../../models/GameState';
 import { PieceColor } from '../../models/Piece';
 import soundManager from '../../services/SoundManager';
+import ChessApi from '../../services/chessApi';
 
 // Board letters and numbers for algebraic notation
 const boardLetters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 const boardNumbers = ['8', '7', '6', '5', '4', '3', '2', '1'];
 
 const Chessboard = () => {
-  // Use a single gameState object managed by the chess engine
-  const [gameState, setGameState] = useState<GameState>(
-    ChessEngineInstance.getGameState()
-  );
-
-  // UI specific state
-  const [squareSize, setSquareSize] = useState<number>(60); // Default size
-  const [isDragging, setIsDragging] = useState<boolean>(false);
-  const draggingPieceRef = useRef<string | null>(null);
-  const draggingFromSquareRef = useRef<string | null>(null);
-  const lastMouseDownSquare = useRef<string | null>(null);
-  const playerRef = useRef<PieceColor>('white');
-
-  // Refs for DOM elements
-  const validSquaresRef = useRef<string[]>([]);
-  const lastHoveredSquareRef = useRef<string | null>(null);
-
-  // Effect to handle window resize for responsive board
-  useEffect(() => {
-    const handleResize = () => {
-      const boardContainer = document.querySelector('.board-container');
-      if (boardContainer) {
-        const width = boardContainer.clientWidth;
-        const height = boardContainer.clientHeight;
-        const minSize = Math.min(width, height);
-        setSquareSize(minSize / 8);
-      }
-    };
-
-    window.addEventListener('resize', handleResize);
-    handleResize(); // Set initial size
-
-    return () => {
-      window.removeEventListener('resize', handleResize);
-    };
-  }, []);
-
-  // Play sound when game state changes
-  useEffect(() => {
-    // Play appropriate sounds based on game state changes
-    if (gameState.checkmate) {
-      soundManager.playGameStateSound('end');
-    } else if (gameState.whiteKingInCheck || gameState.blackKingInCheck) {
-      // Avoid duplicate sounds - the move handler already plays check sound
-      if (!gameState.lastMoves || gameState.lastMoves.length === 0) {
-        soundManager.playMoveSound('check');
-      }
-    }
-  }, [
-    gameState.checkmate,
-    gameState.whiteKingInCheck,
-    gameState.blackKingInCheck,
-    gameState.lastMoves,
-  ]);
-
-  // Sound setup
-  useEffect(() => {
-    soundManager.loadSounds();
-    soundManager.setGlobalVolume(0.5);
-
-    // Play game start sound when component mounts
-    // disabled curently for testing
-    // soundManager.playGameStateSound('start');
-  }, []);
-
-  // Use ResizeObserver for responsive sizing
-  useEffect(() => {
-    const boardElement = document.querySelector('.chessboard-container');
-    if (!boardElement) return;
-
-    const resizeObserver = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        const containerWidth = entry.contentRect.width;
-        const newSquareSize = Math.floor((containerWidth - 16) / 8);
-        setSquareSize(newSquareSize);
-      }
-    });
-
-    resizeObserver.observe(boardElement);
-    return () => resizeObserver.disconnect();
-  }, []);
-
-  // Update drag image size if squareSize changes during drag
-  useEffect(() => {
-    if (!isDragging || !draggingFromSquareRef.current) return;
-
-    const dragImage = document.body.querySelector(
-      'img[style*="position: fixed"]'
-    ) as HTMLImageElement;
-    if (dragImage) {
-      // Find the original piece element to get its new size
-      const originalPiece = document.querySelector(
-        `#${draggingFromSquareRef.current} img`
-      ) as HTMLImageElement;
-      if (originalPiece) {
-        const newRect = originalPiece.getBoundingClientRect();
-        dragImage.style.width = `${newRect.width}px`;
-        dragImage.style.height = `${newRect.height}px`;
-      }
-    }
-  }, [squareSize, isDragging]);
-
   // Handle mouse movement during drag
   const handleMouseMove = (evt: MouseEvent) => {
     const customDragImage = document.querySelector(
@@ -163,6 +69,142 @@ const Chessboard = () => {
       lastHoveredSquareRef.current = currentSquareId;
     }
   };
+  // Restore missing refs for drag and hover logic
+  const draggingFromSquareRef = useRef<string | null>(null);
+  const validSquaresRef = useRef<string[]>([]);
+  const lastHoveredSquareRef = useRef<string | null>(null);
+  const lastMouseDownSquare = useRef<string | null>(null);
+  const playerRef = useRef<PieceColor>('white');
+  const botColorRef = useRef<PieceColor | null>(null);
+  // Use a single gameState object managed by the chess engine
+  const [gameState, setGameState] = useState<GameState>(
+    ChessEngineInstance.getGameState()
+  );
+
+  // UI specific state
+  const [squareSize, setSquareSize] = useState<number>(60); // Default size
+  const [isDragging, setIsDragging] = useState<boolean>(false);
+  const [isBotThinking, setIsBotThinking] = useState<boolean>(false);
+  const draggingPieceRef = useRef<string | null>(null);
+  const chessApiRef = useRef<ChessApi | null>(null);
+  // Execute bot move received from API
+  // Always use the latest state for bot move
+  const executeBotMove = useCallback(
+    (moveString: string, stateOverride?: GameState) => {
+      const from = moveString.slice(0, 2);
+      const to = moveString.slice(2, 4);
+      const promotion = moveString.length > 4 ? moveString.slice(4) : null;
+
+      // Use the most up-to-date state
+      const baseState = stateOverride || ChessEngineInstance.getGameState();
+      let updatedGameState = { ...baseState };
+
+      let moveResult = null;
+      if (promotion) {
+        moveResult = executeMove(
+          from,
+          to,
+          updatedGameState,
+          updatedGameState.currentPlayer
+        );
+      } else {
+        moveResult = executeMove(
+          from,
+          to,
+          updatedGameState,
+          updatedGameState.currentPlayer
+        );
+      }
+
+      if (moveResult && moveResult.updatedGameState) {
+        setGameState(moveResult.updatedGameState);
+        ChessEngineInstance.setGameState(moveResult.updatedGameState);
+        soundManager.playMoveSound('normal');
+      } else {
+        console.error('Bot move could not be executed:', moveString);
+      }
+
+      setIsBotThinking(false);
+    },
+    []
+  );
+
+  // --- All useEffect hooks must be at the top level of the component, not inside any function ---
+  useEffect(() => {
+    if (gameState.gameMode === 'ai' && !chessApiRef.current) {
+      const api = new ChessApi();
+      api.onMove((move: string) => {
+        // Always use the latest engine state for bot move
+        executeBotMove(move, ChessEngineInstance.getGameState());
+      });
+      api.onError((error: any) => {
+        console.error('Chess API error:', error);
+        setIsBotThinking(false);
+      });
+      api.onLoading((loading: boolean) => {
+        setIsBotThinking(loading);
+      });
+      chessApiRef.current = api;
+    }
+    return () => {
+      if (chessApiRef.current) {
+        chessApiRef.current.disconnect();
+        chessApiRef.current = null;
+      }
+    };
+  }, [gameState.gameMode, executeBotMove]);
+
+  useEffect(() => {
+    if (gameState.checkmate) {
+      soundManager.playGameStateSound('end');
+    } else if (gameState.whiteKingInCheck || gameState.blackKingInCheck) {
+      if (!gameState.lastMoves || gameState.lastMoves.length === 0) {
+        soundManager.playMoveSound('check');
+      }
+    }
+  }, [
+    gameState.checkmate,
+    gameState.whiteKingInCheck,
+    gameState.blackKingInCheck,
+    gameState.lastMoves,
+  ]);
+
+  useEffect(() => {
+    soundManager.loadSounds();
+    soundManager.setGlobalVolume(0.5);
+    // soundManager.playGameStateSound('start');
+  }, []);
+
+  useEffect(() => {
+    const boardElement = document.querySelector('.chessboard');
+    if (!boardElement) return;
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const boardWidth = entry.contentRect.width;
+        const newSquareSize = Math.floor(boardWidth / 8);
+        setSquareSize(newSquareSize);
+      }
+    });
+    resizeObserver.observe(boardElement);
+    return () => resizeObserver.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!isDragging || !draggingFromSquareRef.current) return;
+    const dragImage = document.body.querySelector(
+      'img[style*="position: fixed"]'
+    ) as HTMLImageElement;
+    if (dragImage) {
+      const originalPiece = document.querySelector(
+        `#${draggingFromSquareRef.current} img`
+      ) as HTMLImageElement;
+      if (originalPiece) {
+        const newRect = originalPiece.getBoundingClientRect();
+        dragImage.style.width = `${newRect.width}px`;
+        dragImage.style.height = `${newRect.height}px`;
+      }
+    }
+  }, [squareSize, isDragging]);
 
   // Handle mouse up to end drag
   const handleMouseUp = (evt: MouseEvent) => {
@@ -315,12 +357,12 @@ const Chessboard = () => {
         const updatedGameState = { ...gameState };
         updatedGameState.selectedSquare = squareName;
 
-        // In a real implementation, this would come from ChessEngine
-        const validMoves = calculateBasicValidMoves(
-          squareName,
-          piece,
-          updatedGameState
+        // Get valid moves from GameLogic
+        // Convert boardArray to string[][] (replace nulls with empty string)
+        const boardArrayString = gameState.boardArray.map((row) =>
+          row.map((cell) => cell || '')
         );
+        const validMoves = getValidMoves(piece, squareName, boardArrayString);
         updatedGameState.validMoves = validMoves;
         validSquaresRef.current = validMoves; // Store valid moves for drag-drop
         updatedGameState.highlightedSquares = [squareName];
@@ -333,69 +375,40 @@ const Chessboard = () => {
     }
   };
 
-  // A simple calculation of valid moves for basic demonstration
-  // This would normally be handled by the ChessEngine
-  const calculateBasicValidMoves = (
-    squareName: string,
-    piece: string,
-    state: GameState
-  ): string[] => {
-    // This should be replaced with a call to the actual chess engine
-    // For now, returning a dummy array for testing
-    const { file, rank } = ChessEngineInstance.squareFromNotation(squareName);
-    const validMoves: string[] = [];
-    const pieceType = piece[1];
-    const pieceColor = piece[0] === 'W' ? 'white' : 'black';
-
-    // Basic pawn moves
-    if (pieceType === 'P') {
-      const direction = pieceColor === 'white' ? -1 : 1;
-      const startRank = pieceColor === 'white' ? 6 : 1;
-
-      // Forward one square
-      const newRank = rank + direction;
-      if (newRank >= 0 && newRank < 8 && !state.boardArray[newRank][file]) {
-        validMoves.push(`${boardLetters[file]}${8 - newRank}`);
-
-        // Forward two squares from starting position
-        if (rank === startRank) {
-          const twoAhead = rank + 2 * direction;
-          if (
-            twoAhead >= 0 &&
-            twoAhead < 8 &&
-            !state.boardArray[twoAhead][file]
-          ) {
-            validMoves.push(`${boardLetters[file]}${8 - twoAhead}`);
-          }
-        }
-      }
-
-      // Capturing diagonally
-      for (const offset of [-1, 1]) {
-        const newFile = file + offset;
-        if (newFile >= 0 && newFile < 8) {
-          const targetPiece = state.boardArray[newRank][newFile];
-          if (targetPiece && targetPiece[0] !== piece[0]) {
-            // Enemy piece
-            validMoves.push(`${boardLetters[newFile]}${8 - newRank}`);
-          }
-        }
-      }
-    }
-
-    return validMoves;
-  };
-
   // Handle AI moves
-  const makeBotMove = async () => {
-    if (gameState.checkmate || gameState.stalemate) return;
+  const makeBotMove = async (currentState?: GameState) => {
+    const stateToUse = currentState || gameState;
+    if (stateToUse.checkmate || stateToUse.stalemate) return;
+    if (isBotThinking) return; // Prevent multiple simultaneous requests
 
     try {
-      // ...existing code...
-      // This is a placeholder for AI logic
-      // In a real game, you would call your AI engine here
+      // Making bot move for current player
+
+      // Only make move if it's bot's turn
+      if (stateToUse.currentPlayer !== botColorRef.current) {
+        return;
+      }
+
+      // Bot's turn confirmed, generating FEN...
+
+      // Temporarily update the engine state to generate correct FEN
+      if (currentState) {
+        ChessEngineInstance.setGameState(currentState);
+      }
+
+      // Get current FEN from the chess engine
+      const fen = ChessEngineInstance.convertBoardArrayToFEN();
+      console.log('[FEN sent to chess API]:', fen);
+
+      // Request move from chess-api.com
+      if (chessApiRef.current) {
+        await chessApiRef.current.requestMove(fen);
+      } else {
+        throw new Error('Chess API not initialized');
+      }
     } catch (error) {
-      console.error('Error making bot move:', error);
+      console.error('❌ Error making bot move:', error);
+      setIsBotThinking(false);
     }
   };
 
@@ -494,82 +507,52 @@ const Chessboard = () => {
   // Handle piece drop
   const handleDrop = (dropSquare: string) => {
     const fromSquare = draggingFromSquareRef.current;
-    // ...existing code...
 
     if (!fromSquare) {
       console.error('No fromSquare in draggingFromSquareRef!');
       return;
     }
 
-    const piece = ChessEngineInstance.getPieceAtPosition(fromSquare);
-    if (!piece) return;
+    // Use GameLogic to execute the move
+    const moveResult = executeMove(
+      fromSquare,
+      dropSquare,
+      gameState,
+      gameState.currentPlayer
+    );
 
-    // Make the move
-    const targetPiece = ChessEngineInstance.getPieceAtPosition(dropSquare);
-    const updatedGameState = { ...gameState };
+    if (!moveResult) {
+      console.log('❌ Move not allowed');
+      return;
+    }
 
-    const { file: fromFile, rank: fromRank } =
-      ChessEngineInstance.squareFromNotation(fromSquare);
-    const { file: toFile, rank: toRank } =
-      ChessEngineInstance.squareFromNotation(dropSquare);
+    const { updatedGameState, moveResult: result } = moveResult;
 
-    updatedGameState.boardArray[toRank][toFile] =
-      updatedGameState.boardArray[fromRank][fromFile];
-    updatedGameState.boardArray[fromRank][fromFile] = '';
-
-    // Clear selection and valid moves
-    updatedGameState.selectedSquare = null;
-    updatedGameState.validMoves = [];
-    updatedGameState.highlightedSquares = [];
-
-    // Toggle player
-    updatedGameState.currentPlayer =
-      updatedGameState.currentPlayer === 'white' ? 'black' : 'white';
-
-    // Update last moves
-    updatedGameState.lastMoves = [fromSquare, dropSquare];
-
+    // Update React state
     setGameState(updatedGameState);
 
-    // Determine move type and play appropriate sound
-    let moveType:
-      | 'normal'
-      | 'capture'
-      | 'castle'
-      | 'promotion'
-      | 'en-passant'
-      | 'check'
-      | 'checkmate' = 'normal';
+    // Sync engine state with new board
+    ChessEngineInstance.setGameState({
+      ...ChessEngineInstance.getGameState(),
+      boardArray: updatedGameState.boardArray,
+      currentPlayer: updatedGameState.currentPlayer,
+    } as any);
 
-    if (targetPiece) {
-      moveType = 'capture';
+    // Play appropriate sound
+    soundManager.playMoveSound(result.moveType);
+
+    // Determine bot color on first move if not set
+    if (gameState.gameMode === 'ai' && !botColorRef.current) {
+      botColorRef.current = updatedGameState.currentPlayer;
     }
-
-    if (
-      updatedGameState.whiteKingInCheck ||
-      updatedGameState.blackKingInCheck
-    ) {
-      moveType = updatedGameState.checkmate ? 'checkmate' : 'check';
-    }
-
-    if (piece[1] === 'K') {
-      const fromFileIdx =
-        ChessEngineInstance.squareFromNotation(fromSquare).file;
-      const toFileIdx = ChessEngineInstance.squareFromNotation(dropSquare).file;
-      if (Math.abs(fromFileIdx - toFileIdx) > 1) {
-        moveType = 'castle';
-      }
-    }
-
-    soundManager.playMoveSound(moveType);
 
     // If playing against computer, make AI move after delay
     if (
       gameState.gameMode === 'ai' &&
-      updatedGameState.currentPlayer === 'black'
+      botColorRef.current === updatedGameState.currentPlayer
     ) {
       setTimeout(() => {
-        makeBotMove();
+        makeBotMove(updatedGameState);
       }, 500);
     }
 
@@ -595,8 +578,8 @@ const Chessboard = () => {
         squareName={squareName}
         color={color as 'light' | 'dark'}
         piece={piece || undefined}
+        onSquareMouseDown={handleSquareClick}
         onPieceMouseDown={handleMouseDown}
-        // onClick={() => handleSquareClick(squareName)}
         isSelected={isSelected}
         isHighlighted={isHighlighted}
         isLegalMove={isLegalMove}
@@ -639,7 +622,20 @@ const Chessboard = () => {
   };
 
   // Main component render
-  return <div className="chessboard-container">{renderBoard()}</div>;
+  return (
+    <div
+      className="chessboard-wrapper"
+      style={{ position: 'relative' }}>
+      {isBotThinking && (
+        <div className="bot-thinking-indicator">
+          <div className="thinking-spinner"></div>
+          <span>Bot is thinking...</span>
+        </div>
+      )}
+
+      <div className="chessboard-container">{renderBoard()}</div>
+    </div>
+  );
 };
 
 export default Chessboard;

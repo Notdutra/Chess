@@ -5,6 +5,7 @@ interface SquareProps {
   squareName: string;
   color: 'light' | 'dark';
   piece?: string;
+  onSquareMouseDown?: (squareName: string) => void;
   onPieceMouseDown?: (
     e: React.MouseEvent<HTMLImageElement>,
     piece: string,
@@ -31,6 +32,7 @@ function Square({
   squareName,
   color,
   piece,
+  onSquareMouseDown,
   onPieceMouseDown,
   onPieceDragStart,
   onPieceDragEnd,
@@ -48,7 +50,7 @@ function Square({
     color,
     'square',
     isHighlighted ? 'highlight' : '',
-    isLegalMove ? 'legal-move' : '',
+    isLegalMove && !isCaptureHint ? 'legal-move' : '',
     isCaptureHint ? 'capture-hint' : '',
     isSelected ? 'selected' : '',
   ]
@@ -98,6 +100,7 @@ function Square({
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
+      onMouseDown={() => onSquareMouseDown?.(squareName)}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
       style={

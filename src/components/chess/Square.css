@@ -78,15 +78,16 @@
 .capture-hint::before {
   content: '';
   position: absolute;
-  width: 100%; /* Adjust width and height as needed */
+  width: 100%;
   height: 100%;
-  border-radius: 50%;
-  box-sizing: border-box;
-  border: var(--border-width) solid rgba(0, 0, 0, 0.14); /* Dynamic border width */
-  z-index: 5;
   top: 0;
   left: 0;
-  /* pointer-events: none; */
+  border-radius: 50%;
+  box-sizing: border-box;
+  border: var(--border-width) solid rgba(0, 0, 0, 0.14);
+  background: transparent;
+  z-index: 5;
+  pointer-events: none;
 }
 
 .hover-square {

@@ -48,7 +48,7 @@ export class ChessEngine {
       halfMoveCounter: 0,
       fullMoveCounter: 1,
       lastMoves: [],
-      gameMode: 'human',
+      gameMode: 'ai', // Default to AI mode
     };
   }
 
@@ -1058,24 +1058,18 @@ export class ChessEngine {
     // Board position
     for (let rank = 0; rank < 8; rank++) {
       let emptyCount = 0;
-
       for (let file = 0; file < 8; file++) {
         const piece = this.gameState.boardArray[rank][file];
-
         if (!piece) {
           emptyCount++;
         } else {
-          // If there were empty squares before this piece, add their count
           if (emptyCount > 0) {
             fen += emptyCount.toString();
             emptyCount = 0;
           }
-
-          // Add the piece character
           let fenChar = '';
           const pieceType = this.getPieceType(piece);
           const pieceColor = this.getPieceColor(piece);
-
           switch (pieceType) {
             case 'pawn':
               fenChar = 'p';
@@ -1096,36 +1090,60 @@ export class ChessEngine {
               fenChar = 'k';
               break;
           }
-
           fen += pieceColor === 'white' ? fenChar.toUpperCase() : fenChar;
         }
       }
-
-      // Add any remaining empty squares
       if (emptyCount > 0) {
         fen += emptyCount.toString();
       }
-
-      // Add rank separator (except for the last rank)
       if (rank < 7) {
         fen += '/';
       }
     }
 
-    // Add active color
+    // Active color
     fen += ' ' + (this.gameState.currentPlayer === 'white' ? 'w' : 'b');
 
-    // Add castling availability (placeholder)
-    fen += ' KQkq';
+    // Castling rights
+    let castling = '';
+    // White king/rook
+    const wK = this.gameState.boardArray[7][4] === 'WK';
+    const wR1 = this.gameState.boardArray[7][0] === 'WR1';
+    const wR2 = this.gameState.boardArray[7][7] === 'WR2';
+    // Black king/rook
+    const bK = this.gameState.boardArray[0][4] === 'BK';
+    const bR1 = this.gameState.boardArray[0][0] === 'BR1';
+    const bR2 = this.gameState.boardArray[0][7] === 'BR2';
+    if (wK && wR2) castling += 'K';
+    if (wK && wR1) castling += 'Q';
+    if (bK && bR2) castling += 'k';
+    if (bK && bR1) castling += 'q';
+    if (!castling) castling = '-';
+    fen += ' ' + castling;
 
-    // Add en passant target square (placeholder)
-    fen += ' -';
+    // En passant
+    let enPassant = '-';
+    if (
+      this.gameState.enPassantStatus &&
+      this.gameState.enPassantStatus.square
+    ) {
+      enPassant = this.gameState.enPassantStatus.square;
+    }
+    fen += ' ' + enPassant;
 
-    // Add halfmove clock
-    fen += ' ' + this.gameState.halfMoveCounter;
+    // Halfmove clock
+    fen +=
+      ' ' +
+      (typeof this.gameState.halfMoveCounter === 'number'
+        ? this.gameState.halfMoveCounter
+        : 0);
 
-    // Add fullmove number
-    fen += ' ' + this.gameState.fullMoveCounter;
+    // Fullmove number
+    fen +=
+      ' ' +
+      (typeof this.gameState.fullMoveCounter === 'number'
+        ? this.gameState.fullMoveCounter
+        : 1);
 
     return fen;
   }

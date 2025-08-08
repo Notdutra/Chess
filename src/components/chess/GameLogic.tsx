@@ -19,6 +19,193 @@ let enPassantStatus: false | any[] = false;
 let moveHistory: any[] = [];
 let undoneMoves: any[] = [];
 
+// Export function to add move to history for castling validation
+export function addMoveToHistory(move: {
+  selectedPiece: string;
+  origin: string;
+  destination: string;
+  currentPlayer: string;
+  boardArray: string[][];
+}) {
+  moveHistory.push({
+    ...move,
+    whiteKingInCheck,
+    blackKingInCheck,
+    winner,
+  });
+}
+
+// Export function to get current move history (for debugging)
+export function getMoveHistory() {
+  return moveHistory;
+}
+
+// New function that returns updated game state instead of calling setters
+export function executeMove(
+  fromSquare: string,
+  toSquare: string,
+  gameState: any,
+  currentPlayer: string
+): { updatedGameState: any; moveResult: any } | null {
+  const selectedPiece = squareHasPiece(fromSquare, gameState.boardArray);
+  if (!selectedPiece) {
+    console.error('No piece found at fromSquare:', fromSquare);
+    return null;
+  }
+
+  // Create copy of game state
+  const updatedGameState = JSON.parse(JSON.stringify(gameState));
+  const opponent = currentPlayer === 'white' ? 'black' : 'white';
+  let preMoveBoard = updatedGameState.boardArray.map((row: any[]) =>
+    row.slice()
+  );
+  let soundPlayed = false;
+  let isCheck = false;
+  let castlingMove = false;
+  let moveType:
+    | 'normal'
+    | 'capture'
+    | 'castle'
+    | 'promotion'
+    | 'check'
+    | 'checkmate' = 'normal';
+
+  // Check if it's a capture
+  const targetPiece = squareHasPiece(toSquare, updatedGameState.boardArray);
+  if (targetPiece) {
+    moveType = 'capture';
+  }
+
+  // Castling logic
+  if (selectedPiece && getPieceType(selectedPiece) === 'king') {
+    const isWhite = selectedPiece === 'WK';
+    const isBlack = selectedPiece === 'BK';
+    const castleAttempt =
+      (isWhite &&
+        fromSquare === 'e1' &&
+        (toSquare === 'g1' || toSquare === 'c1')) ||
+      (isBlack &&
+        fromSquare === 'e8' &&
+        (toSquare === 'g8' || toSquare === 'c8'));
+
+    if (castleAttempt) {
+      const status = castleKing(selectedPiece, updatedGameState.boardArray);
+      if (status) {
+        const wantsKingSide = toSquare === 'g1' || toSquare === 'g8';
+        const wantsQueenSide = toSquare === 'c1' || toSquare === 'c8';
+        const legalKingSide =
+          (isWhite && status.includes('K')) ||
+          (isBlack && status.includes('k'));
+        const legalQueenSide =
+          (isWhite && status.includes('Q')) ||
+          (isBlack && status.includes('q'));
+
+        if (
+          (wantsKingSide && legalKingSide) ||
+          (wantsQueenSide && legalQueenSide)
+        ) {
+          castlingMove = true;
+          moveType = 'castle';
+          soundPlayed = true;
+
+          // Move king
+          preMoveBoard = movePiece(preMoveBoard, fromSquare, toSquare);
+
+          // Move rook
+          let rookFrom = '';
+          let rookTo = '';
+          if (toSquare === 'g1') {
+            rookFrom = 'h1';
+            rookTo = 'f1';
+          } else if (toSquare === 'c1') {
+            rookFrom = 'a1';
+            rookTo = 'd1';
+          } else if (toSquare === 'g8') {
+            rookFrom = 'h8';
+            rookTo = 'f8';
+          } else if (toSquare === 'c8') {
+            rookFrom = 'a8';
+            rookTo = 'd8';
+          }
+
+          if (rookFrom && rookTo) {
+            preMoveBoard = movePiece(preMoveBoard, rookFrom, rookTo);
+          }
+        } else {
+          // Castling not allowed
+          console.log('❌ Castling not allowed');
+          return null;
+        }
+      } else {
+        // Castling not allowed
+        console.log('❌ Castling not allowed - validation failed');
+        return null;
+      }
+    }
+  }
+
+  if (!castlingMove) {
+    preMoveBoard = movePiece(preMoveBoard, fromSquare, toSquare);
+  }
+
+  // Handle pawn promotion
+  if (selectedPiece && getPieceType(selectedPiece) === 'pawn') {
+    const promotionBoard = promotePawnHandler(
+      selectedPiece,
+      toSquare,
+      preMoveBoard
+    );
+    if (promotionBoard) {
+      preMoveBoard = promotionBoard;
+      moveType = 'promotion';
+    }
+    pawnEnPassantHandler(selectedPiece, toSquare, preMoveBoard);
+  }
+
+  // Update board in game state
+  updatedGameState.boardArray = preMoveBoard;
+
+  // Update other game state properties
+  updatedGameState.selectedSquare = null;
+  updatedGameState.validMoves = [];
+  updatedGameState.highlightedSquares = [];
+  updatedGameState.currentPlayer = opponent;
+  updatedGameState.lastMoves = [fromSquare, toSquare];
+
+  // Add to move history
+  addMoveToHistory({
+    selectedPiece,
+    origin: fromSquare,
+    destination: toSquare,
+    currentPlayer,
+    boardArray: preMoveBoard,
+  });
+
+  // Check for check/checkmate
+  const currentPlayerInfo = getPlayerInfo(preMoveBoard, currentPlayer);
+  isCheck = isOpponentKingInCheck(currentPlayer, currentPlayerInfo, true);
+  const isCheckMate = isCheckmate(preMoveBoard);
+
+  if (isCheck && !isCheckMate) {
+    moveType = 'check';
+  } else if (isCheckMate) {
+    moveType = 'checkmate';
+  }
+
+  const moveResult = {
+    moveType,
+    selectedPiece,
+    fromSquare,
+    toSquare,
+    targetPiece,
+    isCheck,
+    isCheckMate,
+    castlingMove,
+  };
+
+  return { updatedGameState, moveResult };
+}
+
 let halfMoveCounter: number = 0;
 let fullMoveCounter: number = 1;
 
@@ -123,14 +310,76 @@ export function handleMoveExecution(
   const selectedPiece = squareHasPiece(selectedSquare, boardArray);
 
   const opponent = currentPlayer === 'white' ? 'black' : 'white';
-  let preMoveBoard = movePiece(boardArray, selectedSquare, clickedSquare);
-  const opponentPlayerInfo = getPlayerInfo(preMoveBoard, opponent);
-
-  let currentPlayerInfo = getPlayerInfo(preMoveBoard, currentPlayer);
-
-  setBoardArray(preMoveBoard);
+  let preMoveBoard = boardArray.map((row) => row.slice());
   let soundPlayed = false;
   let isCheck = false;
+  let castlingMove = false;
+
+  // Castling logic: if king moves to a castling square, move rook as well
+  if (selectedPiece && getPieceType(selectedPiece) === 'king') {
+    // Detect a castling attempt by king moving two files from its starting square
+    const isWhite = selectedPiece === 'WK';
+    const isBlack = selectedPiece === 'BK';
+    const from = selectedSquare;
+    const to = clickedSquare;
+    const castleAttempt =
+      (isWhite && from === 'e1' && (to === 'g1' || to === 'c1')) ||
+      (isBlack && from === 'e8' && (to === 'g8' || to === 'c8'));
+
+    if (castleAttempt) {
+      // Re-evaluate castle legality at execution time (don't rely solely on precomputed possibleMoves)
+      const status = castleKing(selectedPiece, boardArray); // returns string like 'KQ', 'K', 'Q', etc. or false
+      if (status) {
+        const wantsKingSide = to === 'g1' || to === 'g8';
+        const wantsQueenSide = to === 'c1' || to === 'c8';
+        const legalKingSide =
+          (isWhite && status.includes('K')) ||
+          (isBlack && status.includes('k'));
+        const legalQueenSide =
+          (isWhite && status.includes('Q')) ||
+          (isBlack && status.includes('q'));
+
+        if (
+          (wantsKingSide && legalKingSide) ||
+          (wantsQueenSide && legalQueenSide)
+        ) {
+          castlingMove = true;
+          soundManager.play('castle');
+          soundPlayed = true;
+
+          // Move king
+          preMoveBoard = movePiece(preMoveBoard, from, to);
+
+          // Determine rook movement
+          let rookFrom = '';
+          let rookTo = '';
+          if (to === 'g1') {
+            rookFrom = 'h1';
+            rookTo = 'f1';
+          } else if (to === 'c1') {
+            rookFrom = 'a1';
+            rookTo = 'd1';
+          } else if (to === 'g8') {
+            rookFrom = 'h8';
+            rookTo = 'f8';
+          } else if (to === 'c8') {
+            rookFrom = 'a8';
+            rookTo = 'd8';
+          }
+
+          if (rookFrom && rookTo) {
+            preMoveBoard = movePiece(preMoveBoard, rookFrom, rookTo);
+          }
+        }
+      }
+    }
+  }
+  if (!castlingMove) {
+    preMoveBoard = movePiece(preMoveBoard, selectedSquare, clickedSquare);
+  }
+  setBoardArray(preMoveBoard);
+  const opponentPlayerInfo = getPlayerInfo(preMoveBoard, opponent);
+  let currentPlayerInfo = getPlayerInfo(preMoveBoard, currentPlayer);
 
   if (selectedPiece && getPieceType(selectedPiece) === 'pawn') {
     halfMoveCounter = 0;
@@ -144,25 +393,6 @@ export function handleMoveExecution(
       currentPlayerInfo = getPlayerInfo(promotionBoard, currentPlayer);
     }
     pawnEnPassantHandler(selectedPiece, clickedSquare, preMoveBoard);
-  } else if (selectedPiece && getPieceType(selectedPiece) === 'king') {
-    let castling = kingCastlingLogic(selectedPiece);
-    if (castling) {
-      const castleSquares = ['c1', 'g1', 'c8', 'g8'];
-      const rook = ['WR1', 'WR2', 'BR1', 'BR2'];
-      const rookDestination = ['d1', 'f1', 'd8', 'f8'];
-      if (castleSquares.includes(clickedSquare)) {
-        soundManager.play('castle');
-        soundPlayed = true;
-        const rookIndex = castleSquares.indexOf(clickedSquare);
-        const rookSquare = getPiecePosition(rook[rookIndex], preMoveBoard);
-        const rookDestinationSquare = rookDestination[rookIndex];
-        if (rookSquare && rookDestinationSquare) {
-          setBoardArray(
-            movePiece(preMoveBoard, rookSquare, rookDestinationSquare)
-          );
-        }
-      }
-    }
   }
 
   isCheck = isOpponentKingInCheck(currentPlayer, currentPlayerInfo, true);
@@ -201,6 +431,7 @@ export function handleMoveExecution(
     blackKingInCheck,
     winner,
   });
+
   undoneMoves = [];
 
   isStalemate(opponentPlayerInfo, preMoveBoard);
@@ -211,7 +442,7 @@ export function handleMoveExecution(
   hideLegalMovesSquares();
 }
 
-function kingCastlingLogic(king: string) {
+export function kingCastlingLogic(king: string) {
   const rookQueenSide = king === 'WK' ? 'WR1' : 'BR1';
   const rookKingSide = king === 'WK' ? 'WR2' : 'BR2';
 
@@ -220,24 +451,32 @@ function kingCastlingLogic(king: string) {
 
   const kingMoves = moveHistory.filter((moves) => moves.selectedPiece === king);
 
-  if (kingMoves.length > 0) return '';
+  // Castling check for king and rooks
+
+  if (kingMoves.length > 0) {
+    return '';
+  }
 
   let kingCastling = '';
 
   const rookKingSideMoves = moveHistory.filter(
     (moves) => moves.selectedPiece === rookKingSide
   );
+
+  // King-side rook moves: [count]
   if (rookKingSideMoves.length === 0) kingCastling += kingSideCastle;
 
   const rookQueenSideMoves = moveHistory.filter(
     (moves) => moves.selectedPiece === rookQueenSide
   );
+
+  // Queen-side rook moves: [count]
   if (rookQueenSideMoves.length === 0) kingCastling += queenSideCastle;
 
   return kingCastling;
 }
 
-function castleKing(king: string, boardArray: string[][]) {
+export function castleKing(king: string, boardArray: string[][]) {
   if (
     (king === 'WK' && whiteKingInCheck) ||
     (king === 'BK' && blackKingInCheck)
@@ -263,7 +502,9 @@ function castleKing(king: string, boardArray: string[][]) {
   if (castleStatus) {
     const squareIsEmptyAndSafe = (square: string) => {
       const piece = squareHasPiece(square, boardArray);
-      return !piece && isMoveSafe(king, boardArray, kingSquare, square, false);
+      return (
+        !piece && isMoveSafe(king, boardArray, kingSquare, square, false, true)
+      );
     };
 
     if (kingSide) {
@@ -428,14 +669,19 @@ function isMoveSafe(
   boardArray: string[][],
   from: string,
   to: string,
-  real = false
+  real = false,
+  skipCastling = false
 ): boolean {
   const color = getPieceColor(piece);
 
   // Simulate the move
   let newBoardArray = movePiece(boardArray, from, to);
   // Check if our king is in check after the move
-  const simulatedMovesPieceInfoCurrent = getPlayerInfo(newBoardArray, color);
+  const simulatedMovesPieceInfoCurrent = getPlayerInfo(
+    newBoardArray,
+    color,
+    skipCastling
+  );
   let ourKingInCheck = isOurKingInCheck(
     color,
     simulatedMovesPieceInfoCurrent,
@@ -445,15 +691,22 @@ function isMoveSafe(
   return !ourKingInCheck;
 }
 
-function getValidMoves(
+export function getValidMoves(
   piece: string,
   position: string,
   boardArray: string[][],
-  real = false
+  real = false,
+  skipCastling = false
 ): string[] {
-  const possibleMoves = getPossibleMoves(piece, position, boardArray, false);
+  const possibleMoves = getPossibleMoves(
+    piece,
+    position,
+    boardArray,
+    false,
+    skipCastling
+  );
   let safeMoves = possibleMoves.filter((move) =>
-    isMoveSafe(piece, boardArray, position, move, real)
+    isMoveSafe(piece, boardArray, position, move, real, true)
   );
   return safeMoves;
 }
@@ -472,10 +725,11 @@ export function getPossibleMoves(
   piece: string,
   position: string,
   boardArray: string[][],
-  allowPromotion = false
+  allowPromotion = false,
+  skipCastling = false
 ): string[] {
-  const squareLetter = position[0];
-  const squareNumber = parseInt(position[1]);
+  squareLetter = position[0];
+  squareNumber = parseInt(position[1]);
   let moves: string[] = [];
 
   const pieceType = getPieceType(piece);
@@ -504,7 +758,7 @@ export function getPossibleMoves(
       moves = queenMoves(position, pieceColor, boardArray);
       break;
     case 'king':
-      moves = kingMoves(position, pieceColor, boardArray);
+      moves = kingMoves(position, pieceColor, boardArray, false, skipCastling);
       break;
   }
 
@@ -532,7 +786,7 @@ function getCoverMoves(
     case 'queen':
       return queenMoves(position, pieceColor, boardArray, true);
     case 'king':
-      return kingMoves(position, pieceColor, boardArray, true);
+      return kingMoves(position, pieceColor, boardArray, true, true);
   }
 }
 
@@ -871,7 +1125,8 @@ function kingMoves(
   position: string,
   aPieceColor: string,
   boardArray: string[][],
-  coverMoves = false
+  coverMoves = false,
+  skipCastling = false
 ): string[] {
   squareLetter = position[0];
   squareNumber = parseInt(position[1]);
@@ -900,6 +1155,23 @@ function kingMoves(
     addMoveIfOpponentOrEmpty(square, piece, aPieceColor, moves, coverMoves);
   });
 
+  // Integrate castling logic
+  // Only add castling moves if not coverMoves and not skipCastling (i.e., real move generation, not threat map or safety check)
+  if (!coverMoves && !skipCastling) {
+    // Save current possibleMoves
+    const prevPossibleMoves = possibleMoves;
+    possibleMoves = [...moves];
+    // Use the global player variable if available, else infer from aPieceColor
+    const kingPiece = aPieceColor === 'white' ? 'WK' : 'BK';
+    const prevPlayer = player;
+    player = aPieceColor as 'white' | 'black';
+    castleKing(kingPiece, boardArray);
+    // Merge castling moves added to possibleMoves
+    moves = Array.from(new Set([...moves, ...possibleMoves]));
+    // Restore previous state
+    possibleMoves = prevPossibleMoves;
+    player = prevPlayer;
+  }
   return moves;
 }
 
@@ -922,7 +1194,11 @@ function movePiece(
   return newBoardArray;
 }
 
-function getPlayerInfo(boardArray: string[][], pieceColor: string): any[] {
+function getPlayerInfo(
+  boardArray: string[][],
+  pieceColor: string,
+  skipCastling = false
+): any[] {
   const currentColor = pieceColor;
   const opponentColor = pieceColor === 'white' ? 'black' : 'white';
 
@@ -939,7 +1215,8 @@ function getPlayerInfo(boardArray: string[][], pieceColor: string): any[] {
           piece,
           aPosition,
           aPieceColor,
-          boardArray
+          boardArray,
+          skipCastling
         );
 
         aPieceColor === pieceColor
@@ -1001,9 +1278,16 @@ function createPieceInfo(
   piece: string,
   position: string,
   pieceColor: string,
-  boardArray: string[][]
+  boardArray: string[][],
+  skipCastling = false
 ): any {
-  const possibleMoves = getPossibleMoves(piece, position, boardArray, false);
+  const possibleMoves = getPossibleMoves(
+    piece,
+    position,
+    boardArray,
+    false,
+    skipCastling
+  );
   const moves = getMovesOnly(possibleMoves, boardArray);
   const captures = getCapturesOnly(pieceColor, possibleMoves, boardArray);
   const attacks = captures.map((square) => squareHasPiece(square, boardArray));
