@@ -45,10 +45,10 @@ export class ChessApi {
     );
 
     this.options = {
-      depth: parseInt(process.env.NEXT_PUBLIC_CHESS_API_DEPTH || '12'),
+      depth: parseInt(process.env.NEXT_PUBLIC_CHESS_API_DEPTH || '1'),
       variants: parseInt(process.env.NEXT_PUBLIC_CHESS_API_VARIANTS || '1'),
       maxThinkingTime: parseInt(
-        process.env.NEXT_PUBLIC_CHESS_API_MAX_THINKING_TIME || '50'
+        process.env.NEXT_PUBLIC_CHESS_API_MAX_THINKING_TIME || '5'
       ),
       ...options, // Allow override of env vars with explicit options
     };
@@ -111,33 +111,22 @@ export class ChessApi {
   }
 
   async requestMove(fen: string): Promise<string> {
-    return new Promise(async (resolve, reject) => {
-      // Ensure we have a connection before proceeding
-      if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-        try {
-          await this.connect();
-        } catch (error) {
-          reject(new Error('Failed to establish WebSocket connection'));
-          return;
-        }
+    // Ensure we have a connection before proceeding
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      try {
+        await this.connect();
+      } catch (error) {
+        throw new Error('Failed to establish WebSocket connection');
       }
+    }
 
+    return new Promise((resolve, reject) => {
       const message = {
         fen: fen,
-        depth: this.options.depth || 2, // Reduced from 12 to 2 for faster response
+        depth: this.options.depth || 1, // Use default 1 if not specified
         variants: this.options.variants || 1,
-        maxThinkingTime: this.options.maxThinkingTime || 10, // Reduced from 50 to 10 seconds
+        maxThinkingTime: this.options.maxThinkingTime ?? 5, // Use default 5 if not set
       };
-
-      // Add timeout to prevent bot from getting stuck thinking
-      const timeout = setTimeout(() => {
-        this.ws?.removeEventListener('message', handleResponse);
-        reject(
-          new Error(
-            'Bot request timeout - chess-api.com took too long to respond'
-          )
-        );
-      }, 20000); // 20 second timeout
 
       // Set up response handler
       const handleResponse = (event: MessageEvent) => {
@@ -163,6 +152,16 @@ export class ChessApi {
           reject(error);
         }
       };
+
+      // Add timeout to prevent bot from getting stuck thinking
+      const timeout = setTimeout(() => {
+        this.ws?.removeEventListener('message', handleResponse);
+        reject(
+          new Error(
+            'Bot request timeout - chess-api.com took too long to respond'
+          )
+        );
+      }, 20000); // 20 second timeout
 
       this.ws!.addEventListener('message', handleResponse);
       this.ws!.send(JSON.stringify(message));

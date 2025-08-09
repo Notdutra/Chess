@@ -1,11 +1,22 @@
 import { getBasePath } from '../utils/paths';
 
+const SOUND_NAMES = [
+  'playerMove',
+  'opponentMove',
+  'capture',
+  'castle',
+  'check',
+  'promote',
+  'gameEnd',
+  'illegalMove',
+  'gameStart',
+];
+
 class SoundManager {
   audioContext: AudioContext;
-  sounds: Record<string, AudioBuffer>;
+  audioBuffers: Map<string, AudioBuffer>;
+  preloaded: boolean;
   globalVolume: number;
-  gainNodes: Record<string, GainNode>;
-  destination: AudioDestinationNode;
 
   constructor() {
     this.audioContext = new (window.AudioContext ||
@@ -13,12 +24,9 @@ class SoundManager {
     if (!this.audioContext) {
       throw new Error('Web Audio API is not supported in this browser.');
     }
-    this.sounds = {};
+    this.audioBuffers = new Map();
+    this.preloaded = false;
     this.globalVolume = 1;
-    this.gainNodes = {};
-    this.destination = this.audioContext.destination;
-    this._ensureAudioContextReady();
-    this._preloadFirstSound();
   }
 
   async _ensureAudioContextReady(): Promise<void> {
@@ -27,167 +35,88 @@ class SoundManager {
     }
   }
 
-  async _preloadFirstSound(): Promise<void> {
+  async preloadAllSounds(): Promise<void> {
+    if (this.preloaded) return;
     const basePath = getBasePath();
-    const firstSoundPath = `${basePath}/sounds/playerMove.mp3`;
-    try {
-      const response = await fetch(firstSoundPath);
-      const arrayBuffer = await response.arrayBuffer();
-      const audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
-      this.sounds['playerMove'] = audioBuffer;
-      this.gainNodes['playerMove'] = this.audioContext.createGain();
-      this.gainNodes['playerMove'].gain.value = this.globalVolume;
-    } catch (error) {
-      console.error(
-        `Failed to preload first sound from ${firstSoundPath}:`,
-        error
-      );
-    }
+    await Promise.all(
+      SOUND_NAMES.map(async (name) => {
+        try {
+          const response = await fetch(`${basePath}/sounds/${name}.mp3`);
+          const arrayBuffer = await response.arrayBuffer();
+          const audioBuffer = await this.audioContext.decodeAudioData(
+            arrayBuffer
+          );
+          this.audioBuffers.set(name, audioBuffer);
+        } catch (error) {
+          console.error(`Failed to load sound: ${name}`, error);
+        }
+      })
+    );
+    this.preloaded = true;
   }
 
-  async loadSounds(): Promise<void> {
-    const basePath = getBasePath();
-    const soundEntries = Object.entries({
-      capture: `${basePath}/sounds/capture.mp3`,
-      castle: `${basePath}/sounds/castle.mp3`,
-      check: `${basePath}/sounds/check.mp3`,
-      gameEnd: `${basePath}/sounds/gameEnd.mp3`,
-      gameStart: `${basePath}/sounds/gameStart.mp3`,
-      illegalMove: `${basePath}/sounds/illegalMove.mp3`,
-      opponentMove: `${basePath}/sounds/opponentMove.mp3`,
-      playerMove: `${basePath}/sounds/playerMove.mp3`,
-      promote: `${basePath}/sounds/promote.mp3`,
-    });
-
-    for (const [name, path] of soundEntries) {
-      if (name === 'playerMove') continue;
-      try {
-        const response = await fetch(path);
-        const arrayBuffer = await response.arrayBuffer();
-        const audioBuffer = await this.audioContext.decodeAudioData(
-          arrayBuffer
-        );
-        this.sounds[name] = audioBuffer;
-        this.gainNodes[name] = this.audioContext.createGain();
-        this.gainNodes[name].gain.value = this.globalVolume;
-      } catch (error) {
-        console.error(`Failed to load sound "${name}" from ${path}:`, error);
-      }
-    }
-  }
-
-  async play(
-    sound: string,
-    volume: number = 1.5,
-    delay: number = 0
-  ): Promise<void> {
+  async play(name: string, volume: number = 1): Promise<void> {
     await this._ensureAudioContextReady();
+    if (!this.preloaded) await this.preloadAllSounds();
 
-    const audioBuffer = this.sounds[sound];
-    if (!audioBuffer) {
-      console.error(`Sound "${sound}" not loaded.`);
+    const buffer = this.audioBuffers.get(name);
+    if (!buffer) {
+      console.error(`Sound "${name}" not loaded.`);
       return;
     }
 
     const source = this.audioContext.createBufferSource();
-    source.buffer = audioBuffer;
-    source.connect(this.gainNodes[sound]);
-    this.gainNodes[sound].gain.value = volume * this.globalVolume;
-    this.gainNodes[sound].connect(this.destination);
+    const gainNode = this.audioContext.createGain();
+    gainNode.gain.value = volume * this.globalVolume;
 
-    // Use current time plus delay for precise timing
-    source.start(this.audioContext.currentTime + delay);
-
-    // Return a promise that resolves when the sound finishes playing
-    return new Promise((resolve) => {
-      source.onended = () => resolve();
-      // Also resolve after the expected duration plus a small buffer
-      setTimeout(resolve, audioBuffer.duration * 1000 + 100);
-    });
-  }
-
-  /**
-   * Play multiple sounds in sequence with precise timing
-   */
-  async playSequence(
-    sounds: Array<{ name: string; volume?: number; delay?: number }>
-  ): Promise<void> {
-    let totalDelay = 0;
-    for (const sound of sounds) {
-      await this.play(sound.name, sound.volume || 1.5, totalDelay);
-      totalDelay += sound.delay || 0.1; // Default 100ms between sounds
-    }
+    source.buffer = buffer;
+    source.connect(gainNode).connect(this.audioContext.destination);
+    source.start();
   }
 
   setGlobalVolume(volume: number): void {
-    if (volume < 0 || volume > 1 || volume === this.globalVolume) {
-      return;
-    }
+    if (volume < 0 || volume > 1 || volume === this.globalVolume) return;
     this.globalVolume = volume;
-    for (const gainNode of Object.values(this.gainNodes)) {
-      gainNode.gain.value = volume;
-    }
   }
 
-  /**
-   * Play appropriate sound for a move based on move type
-   */
   playMoveSound(
     moveType:
-      | 'normal'
       | 'capture'
       | 'castle'
-      | 'promotion'
-      | 'en-passant'
       | 'check'
-      | 'checkmate'
-      | 'illegal'
+      | 'gameEnd'
+      | 'gameStart'
+      | 'illegalMove'
+      | 'opponentMove'
+      | 'playerMove'
+      | 'promote'
   ): void {
     switch (moveType) {
       case 'capture':
-        this.play('capture', 1.7);
-        break;
       case 'castle':
-        this.play('castle', 1.5);
-        break;
-      case 'promotion':
-        this.play('promote', 1.6);
-        break;
       case 'check':
-        this.play('check', 1.7);
+      case 'gameEnd':
+      case 'gameStart':
+      case 'illegalMove':
+      case 'opponentMove':
+      case 'playerMove':
+      case 'promote':
+        this.play(moveType, 1);
         break;
-      case 'checkmate':
-        this.playSequence([
-          { name: 'check', volume: 1.5 },
-          { name: 'gameEnd', volume: 1.8, delay: 0.1 },
-        ]);
-        break;
-      case 'illegal':
-        this.play('illegalMove', 1.0);
-        break;
-      case 'en-passant':
-        this.play('capture', 1.6);
-        break;
-      case 'normal':
       default:
-        this.play('playerMove', 1.5);
+        this.play('playerMove', 1);
         break;
     }
   }
 
-  /**
-   * Play contextual game state sounds
-   */
   playGameStateSound(state: 'start' | 'end' | 'draw'): void {
     switch (state) {
       case 'start':
-        this.play('gameStart', 1.7);
+        this.play('gameStart', 1);
         break;
       case 'end':
-        this.play('gameEnd', 1.7);
-        break;
       case 'draw':
-        this.play('gameEnd', 1.3);
+        this.play('gameEnd', 1);
         break;
     }
   }

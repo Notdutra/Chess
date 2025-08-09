@@ -13,6 +13,16 @@ const boardLetters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 const boardNumbers = ['8', '7', '6', '5', '4', '3', '2', '1'];
 
 const Chessboard = () => {
+  useEffect(() => {
+    const enableAudio = () => {
+      soundManager.preloadAllSounds();
+      soundManager.setGlobalVolume(1);
+      window.removeEventListener('pointerdown', enableAudio);
+    };
+    window.addEventListener('pointerdown', enableAudio, { once: true });
+    return () => window.removeEventListener('pointerdown', enableAudio);
+  }, []);
+
   // Handle mouse movement during drag
   const handleMouseMove = (evt: MouseEvent) => {
     const customDragImage = document.querySelector(
@@ -124,6 +134,26 @@ const Chessboard = () => {
           updatedGameState,
           updatedGameState.currentPlayer
         );
+      }
+
+      if (moveResult && moveResult.moveResult) {
+        const result = moveResult.moveResult;
+        if (result.isCheckMate) {
+          soundManager.playMoveSound('gameEnd');
+        } else if (result.isCheck) {
+          soundManager.playMoveSound('check');
+        } else if (
+          result.moveType === 'capture' ||
+          result.moveType === 'en-passant'
+        ) {
+          soundManager.playMoveSound('capture');
+        } else if (result.moveType === 'castle') {
+          soundManager.playMoveSound('castle');
+        } else if (result.moveType === 'promotion') {
+          soundManager.playMoveSound('promote');
+        } else {
+          soundManager.playMoveSound('opponentMove');
+        }
       }
 
       if (moveResult && moveResult.updatedGameState) {
@@ -244,12 +274,6 @@ const Chessboard = () => {
   ]);
 
   useEffect(() => {
-    soundManager.loadSounds();
-    soundManager.setGlobalVolume(0.5);
-    // soundManager.playGameStateSound('start');
-  }, []);
-
-  useEffect(() => {
     const boardElement = document.querySelector('.chessboard');
     if (!boardElement) return;
     const resizeObserver = new ResizeObserver((entries) => {
@@ -356,12 +380,8 @@ const Chessboard = () => {
   // Handle square click
   let sameSquareCounter: number = 0;
   const handleSquareClick = (squareName: string) => {
-    // ...existing code...
-
     if (isDragging) return; // Prevent click logic during drag
     if (gameState.currentPlayer !== playerRef.current) return;
-
-    // ...existing code...
 
     // If we already have a selected square, try to make a move
     if (gameState.selectedSquare) {
@@ -371,12 +391,8 @@ const Chessboard = () => {
       // Don't do anything if clicking the same square twice
       if (fromSquare === toSquare) {
         sameSquareCounter++;
-        // ...existing code...
-
         // Deselect
         if (sameSquareCounter > 1) {
-          // ...existing code...
-
           const updatedGameState = { ...gameState };
           updatedGameState.selectedSquare = null;
           updatedGameState.validMoves = [];
@@ -442,7 +458,7 @@ const Chessboard = () => {
         setGameState(updatedGameState);
       } else {
         // Not player's turn or piece
-        soundManager.playMoveSound('illegal');
+        soundManager.playMoveSound('illegalMove');
       }
     }
   };
@@ -756,7 +772,7 @@ const Chessboard = () => {
 
       // Play move sound (existing sound logic)
       if (result.isCheckMate) {
-        soundManager.playMoveSound('checkmate');
+        soundManager.playMoveSound('gameEnd');
       } else if (result.isCheck) {
         soundManager.playMoveSound('check');
       } else if (
@@ -767,9 +783,9 @@ const Chessboard = () => {
       } else if (result.moveType === 'castle') {
         soundManager.playMoveSound('castle');
       } else if (result.moveType === 'promotion') {
-        soundManager.playMoveSound('promotion');
+        soundManager.playMoveSound('promote');
       } else {
-        soundManager.playMoveSound('normal');
+        soundManager.playMoveSound('playerMove');
       }
 
       // Determine bot color on first move if not set
@@ -960,4 +976,5 @@ const Chessboard = () => {
     </div>
   );
 };
+
 export default Chessboard;
