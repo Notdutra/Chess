@@ -115,7 +115,7 @@ class SoundManager {
     let totalDelay = 0;
     for (const sound of sounds) {
       await this.play(sound.name, sound.volume || 1.5, totalDelay);
-      totalDelay += sound.delay || 0.2; // Default 200ms between sounds
+      totalDelay += sound.delay || 0.1; // Default 100ms between sounds
     }
   }
 
@@ -159,7 +159,7 @@ class SoundManager {
       case 'checkmate':
         this.playSequence([
           { name: 'check', volume: 1.5 },
-          { name: 'gameEnd', volume: 1.8, delay: 0.3 },
+          { name: 'gameEnd', volume: 1.8, delay: 0.1 },
         ]);
         break;
       case 'illegal':
@@ -191,41 +191,6 @@ class SoundManager {
         break;
     }
   }
-
-  /**
-   * Play a very subtle hover sound effect when hovering over chess pieces
-   */
-  playHoverSound(volume: number = 0.08): void {
-    if (!this.sounds['playerMove']) return;
-
-    // Don't play the hover sound too frequently
-    const now = Date.now();
-    if (now - (this._lastHoverSound || 0) < 150) return;
-    this._lastHoverSound = now;
-
-    const source = this.audioContext.createBufferSource();
-    source.buffer = this.sounds['playerMove'];
-
-    // Create a gain node for this specific sound
-    const gainNode = this.audioContext.createGain();
-    gainNode.gain.value = volume * this.globalVolume * 0.3; // Very low volume
-
-    // Create a filter for higher pitch
-    const filter = this.audioContext.createBiquadFilter();
-    filter.type = 'highpass';
-    filter.frequency.value = 2000;
-
-    // Connect the nodes
-    source.connect(filter);
-    filter.connect(gainNode);
-    gainNode.connect(this.destination);
-
-    // Play a very short segment
-    source.start(0, 0, 0.05); // Play only the first 50ms
-  }
-
-  // Track the last time a hover sound was played to prevent sound spamming
-  private _lastHoverSound: number = 0;
 }
 
 const soundManager = new SoundManager();

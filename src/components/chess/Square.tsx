@@ -5,6 +5,7 @@ interface SquareProps {
   squareName: string;
   color: 'light' | 'dark';
   piece?: string;
+  onSquareMouseDown?: (squareName: string) => void;
   onPieceMouseDown?: (
     e: React.MouseEvent<HTMLImageElement>,
     piece: string,
@@ -25,12 +26,15 @@ interface SquareProps {
   isLegalMove?: boolean;
   isCaptureHint?: boolean;
   squareSize: number;
+  isDragging?: boolean;
+  isDragOver?: boolean;
 }
 
 function Square({
   squareName,
   color,
   piece,
+  onSquareMouseDown,
   onPieceMouseDown,
   onPieceDragStart,
   onPieceDragEnd,
@@ -43,71 +47,53 @@ function Square({
   isLegalMove,
   isCaptureHint,
   squareSize,
+  isDragging,
+  isDragOver,
 }: SquareProps) {
+  // Compute className after all variables are defined
   const className = [
     color,
     'square',
     isHighlighted ? 'highlight' : '',
-    isLegalMove ? 'legal-move' : '',
+    isLegalMove && !isCaptureHint ? 'legal-move' : '',
     isCaptureHint ? 'capture-hint' : '',
     isSelected ? 'selected' : '',
+    isDragOver ? 'drag-over' : '',
   ]
     .filter(Boolean)
     .join(' ');
 
   // Handle drag enter to add visual feedback
-  const [isDragOver, setIsDragOver] = useState(false);
+  // isDragOver is now controlled by prop from Chessboard
+  // No local hover state; drag-over is fully controlled by isDragOver prop
 
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-    // This is critical to enable drop
-    e.preventDefault();
-    e.stopPropagation();
-    e.dataTransfer.dropEffect = 'move';
-    if (!isDragOver) setIsDragOver(true);
-    onDragOver?.(e);
-  };
+  // Drag-over highlighting is now fully controlled by isDragOver prop from Chessboard
 
-  const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragOver(true);
-  };
+  // Compute cursor style
+  let cursorStyle = undefined;
+  if (isDragging) {
+    cursorStyle = 'grabbing';
+  } else if (isLegalMove || isCaptureHint) {
+    cursorStyle = 'pointer';
+  } else if (piece) {
+    cursorStyle = 'grab';
+  }
 
-  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragOver(false);
-  };
-
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault(); // Prevent default to allow drop
-    e.stopPropagation();
-    setIsDragOver(false);
-
-    // Get the source square from dataTransfer
-    const fromSquare = e.dataTransfer.getData('text/plain');
-    const piece = e.dataTransfer.getData('application/chess-piece');
-
-    onDrop?.(e);
-  };
   return (
     <div
       id={squareName}
-      className={`${className} ${isDragOver ? 'drag-over' : ''}`}
-      onDragOver={handleDragOver}
-      onDragEnter={handleDragEnter}
-      onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
-      onMouseEnter={onMouseEnter}
-      onMouseLeave={onMouseLeave}
+      className={className}
+      onMouseDown={() => onSquareMouseDown?.(squareName)}
       style={
         {
           '--border-width': `${(squareSize * 8.889) / 100}px`,
           '--hover-border-width': `${(squareSize * 5) / 100}px`,
+          cursor: cursorStyle,
         } as React.CSSProperties
       }>
       {piece && (
         <Piece
+          key={squareName}
           piece={piece}
           squareName={squareName}
           onMouseDown={

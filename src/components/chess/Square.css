@@ -1,3 +1,22 @@
+/* Strong visible highlight for drag-over (hover) state */
+.drag-over {
+  position: relative;
+  --light-square-highlight-color: rgb(245, 245, 140);
+  --dark-square-highlight-color: rgb(186, 201, 73);
+}
+
+.drag-over::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: var(--hover-border-width) solid rgba(255, 255, 255, 0.65);
+  box-sizing: border-box;
+  pointer-events: none;
+  z-index: 10;
+}
 .selected.light {
   background-color: rgb(245, 246, 130);
 }
@@ -78,15 +97,16 @@
 .capture-hint::before {
   content: '';
   position: absolute;
-  width: 100%; /* Adjust width and height as needed */
+  width: 100%;
   height: 100%;
-  border-radius: 50%;
-  box-sizing: border-box;
-  border: var(--border-width) solid rgba(0, 0, 0, 0.14); /* Dynamic border width */
-  z-index: 5;
   top: 0;
   left: 0;
-  /* pointer-events: none; */
+  border-radius: 50%;
+  box-sizing: border-box;
+  border: var(--border-width) solid rgba(0, 0, 0, 0.14);
+  background: transparent;
+  z-index: 5;
+  pointer-events: none;
 }
 
 .hover-square {
@@ -105,4 +125,5 @@
   border: var(--hover-border-width) solid rgba(255, 255, 255, 0.65);
   box-sizing: border-box;
   pointer-events: none;
+  z-index: 10;
 }
