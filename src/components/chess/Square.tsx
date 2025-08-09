@@ -25,6 +25,7 @@ interface SquareProps {
   isHighlighted?: boolean;
   isLegalMove?: boolean;
   isCaptureHint?: boolean;
+  isPremove?: boolean;
   squareSize: number;
   isDragging?: boolean;
   isDragOver?: boolean;
@@ -46,6 +47,7 @@ function Square({
   isHighlighted,
   isLegalMove,
   isCaptureHint,
+  isPremove,
   squareSize,
   isDragging,
   isDragOver,
@@ -59,6 +61,7 @@ function Square({
     isCaptureHint ? 'capture-hint' : '',
     isSelected ? 'selected' : '',
     isDragOver ? 'drag-over' : '',
+    isPremove ? 'premove' : '',
   ]
     .filter(Boolean)
     .join(' ');

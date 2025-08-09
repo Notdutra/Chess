@@ -15,13 +15,24 @@
   border: var(--hover-border-width) solid rgba(255, 255, 255, 0.65);
   box-sizing: border-box;
   pointer-events: none;
-  z-index: 10;
+  z-index: 1;
 }
-.selected.light {
-  background-color: rgb(245, 246, 130);
-}
+.selected.light,
 .selected.dark {
-  background-color: rgb(185, 202, 67);
+  position: relative;
+}
+
+.selected.light::after,
+.selected.dark::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 51, 0.5);
+  pointer-events: none;
+  z-index: 1;
 }
 
 *::before,
@@ -60,12 +71,38 @@
   background-color: var(--dark-square-color);
   color: var(--dark-square-highlight-color);
 }
-.highlight.light {
-  background-color: rgb(245, 245, 140);
+.highlight.light,
+.highlight.dark {
+  position: relative;
 }
 
-.highlight.dark {
-  background-color: rgb(185, 202, 67);
+.highlight.light::after,
+.highlight.dark::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 51, 0.5);
+  pointer-events: none;
+}
+
+.premove.light,
+.premove.dark {
+  position: relative;
+}
+
+.premove.light::after,
+.premove.dark::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(244, 42, 50, 0.5);
+  pointer-events: none;
 }
 
 .legal-move.light::before {
@@ -78,7 +115,6 @@
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  z-index: 1;
 }
 
 .legal-move.dark::before {
@@ -91,7 +127,6 @@
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  z-index: 1;
 }
 
 .capture-hint::before {
@@ -105,7 +140,6 @@
   box-sizing: border-box;
   border: var(--border-width) solid rgba(0, 0, 0, 0.14);
   background: transparent;
-  z-index: 5;
   pointer-events: none;
 }
 
@@ -125,5 +159,4 @@
   border: var(--hover-border-width) solid rgba(255, 255, 255, 0.65);
   box-sizing: border-box;
   pointer-events: none;
-  z-index: 10;
 }

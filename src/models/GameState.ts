@@ -16,6 +16,9 @@ export interface GameState {
   undoneMoves: MoveRecord[];
   highlightedSquares: string[];
   validMoves: string[];
+  premoveSquares: string[]; // Squares that have been premovedto
+  premovePositions: { [square: string]: string }; // Map of where pieces are visually positioned due to premoves (square -> piece)
+  premoveOriginalPositions: { [square: string]: string }; // Map to track original positions of premoved pieces for reset (fromSquare -> piece)
   halfMoveCounter: number;
   fullMoveCounter: number;
   lastMoves: string[];
@@ -63,6 +66,9 @@ export const createInitialGameState = (): GameState => ({
   undoneMoves: [],
   highlightedSquares: [],
   validMoves: [],
+  premoveSquares: [],
+  premovePositions: {},
+  premoveOriginalPositions: {},
   halfMoveCounter: 0,
   fullMoveCounter: 1,
   lastMoves: [],

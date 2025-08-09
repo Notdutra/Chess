@@ -45,6 +45,9 @@ export class ChessEngine {
       undoneMoves: [],
       highlightedSquares: [],
       validMoves: [],
+      premoveSquares: [],
+      premovePositions: {},
+      premoveOriginalPositions: {},
       halfMoveCounter: 0,
       fullMoveCounter: 1,
       lastMoves: [],
@@ -54,6 +57,12 @@ export class ChessEngine {
 
   // Get piece at a given position
   getPieceAtPosition(position: string): string | null {
+    // First check if there's a piece at this position due to premove
+    if (this.gameState.premovePositions[position]) {
+      return this.gameState.premovePositions[position];
+    }
+
+    // Then check the actual board state
     const { file, rank } = this.squareFromNotation(position);
     if (file === -1 || rank === -1) return null;
     return this.gameState.boardArray[rank][file];
@@ -138,8 +147,9 @@ export class ChessEngine {
       this.gameState = {
         ...this.gameState,
         selectedSquare: clickedSquare,
-        highlightedSquares: [clickedSquare],
+        highlightedSquares: [...this.gameState.lastMoves, clickedSquare], // Keep last move + selected piece
         validMoves,
+        // Keep premove squares intact during selection
       };
     }
     // If a piece is already selected and clicked on a valid move destination
@@ -161,8 +171,9 @@ export class ChessEngine {
       this.gameState = {
         ...this.gameState,
         selectedSquare: null,
-        highlightedSquares: [],
+        highlightedSquares: [...this.gameState.lastMoves], // Keep only last move highlighted
         validMoves: [],
+        // Keep premove squares intact during deselection
       };
     }
 
@@ -194,19 +205,14 @@ export class ChessEngine {
     if (capturedPiece) {
       move.capturedPiece = capturedPiece;
       moveType = 'capture';
-      newGameState.halfMoveCounter = 0; // Reset half-move counter on capture
-    } else {
-      newGameState.halfMoveCounter++;
     }
-
-    // Update the board
-    const fromSquare = this.squareFromNotation(from);
-    const toSquare = this.squareFromNotation(to);
 
     // Get piece type before moving
     const pieceType = this.getPieceType(piece);
 
-    // Move the piece on the board
+    // Update the board
+    const fromSquare = this.squareFromNotation(from);
+    const toSquare = this.squareFromNotation(to);
     newGameState.boardArray[toSquare.rank][toSquare.file] =
       newGameState.boardArray[fromSquare.rank][fromSquare.file];
     newGameState.boardArray[fromSquare.rank][fromSquare.file] = '';
@@ -303,8 +309,11 @@ export class ChessEngine {
 
     // Update game state
     newGameState.selectedSquare = null;
-    newGameState.highlightedSquares = [];
+    newGameState.highlightedSquares = [from, to]; // Keep last move highlighted
     newGameState.validMoves = [];
+    newGameState.premoveSquares = []; // Clear premove highlights on actual move
+    newGameState.premovePositions = {}; // Clear visual premove piece positions
+    newGameState.premoveOriginalPositions = {}; // Clear premove original positions tracking
     newGameState.lastMoves = [from, to];
     newGameState.currentPlayer =
       this.gameState.currentPlayer === 'white' ? 'black' : 'white';
@@ -330,6 +339,18 @@ export class ChessEngine {
 
     // Clear undone moves since we've made a new move
     newGameState.undoneMoves = [];
+
+    // Update halfmove clock (reset after pawn move, capture, en-passant, or promotion)
+    if (
+      pieceType === 'pawn' ||
+      moveType === 'capture' ||
+      moveType === 'en-passant' ||
+      moveType === 'promotion'
+    ) {
+      newGameState.halfMoveCounter = 0;
+    } else {
+      newGameState.halfMoveCounter++;
+    }
 
     // Check for check, checkmate, stalemate
     this.updateGameStatus(newGameState);
@@ -401,6 +422,156 @@ export class ChessEngine {
       default:
         return [];
     }
+  }
+
+  // Premove moves: wide, pseudo-legal options ignoring checks/pins
+  getPremoveMoves(piece: string, position: string): string[] {
+    const pieceType = this.getPieceType(piece);
+    const pieceColor = this.getPieceColor(piece);
+    if (!pieceType || !pieceColor) return [];
+
+    switch (pieceType) {
+      case 'pawn':
+        return this.getPawnPremoveTargets(position, pieceColor);
+      case 'knight':
+        return this.getKnightPremoveTargets(position);
+      case 'bishop':
+        return this.getSlidingPremoveTargets(position, [
+          { dr: 1, df: 1 },
+          { dr: 1, df: -1 },
+          { dr: -1, df: 1 },
+          { dr: -1, df: -1 },
+        ]);
+      case 'rook':
+        return this.getSlidingPremoveTargets(position, [
+          { dr: 1, df: 0 },
+          { dr: -1, df: 0 },
+          { dr: 0, df: 1 },
+          { dr: 0, df: -1 },
+        ]);
+      case 'queen':
+        return this.getSlidingPremoveTargets(position, [
+          { dr: 1, df: 1 },
+          { dr: 1, df: -1 },
+          { dr: -1, df: 1 },
+          { dr: -1, df: -1 },
+          { dr: 1, df: 0 },
+          { dr: -1, df: 0 },
+          { dr: 0, df: 1 },
+          { dr: 0, df: -1 },
+        ]);
+      case 'king':
+        return this.getKingPremoveTargets(position);
+      default:
+        return [];
+    }
+  }
+
+  // Pawns: always allow forward and both diagonals (ignore occupation)
+  private getPawnPremoveTargets(position: string, color: PieceColor): string[] {
+    const { rank, file } = this.squareFromNotation(position);
+    const dir = color === 'white' ? -1 : 1;
+    const moves: string[] = [];
+    // One forward
+    if (rank + dir >= 0 && rank + dir < 8) {
+      moves.push(this.notationFromSquare({ rank: rank + dir, file }));
+      // Two forward from starting rank
+      const startingRank = color === 'white' ? 6 : 1;
+      if (rank === startingRank && rank + 2 * dir >= 0 && rank + 2 * dir < 8) {
+        moves.push(this.notationFromSquare({ rank: rank + 2 * dir, file }));
+      }
+      // Diagonals
+      if (file - 1 >= 0)
+        moves.push(
+          this.notationFromSquare({ rank: rank + dir, file: file - 1 })
+        );
+      if (file + 1 < 8)
+        moves.push(
+          this.notationFromSquare({ rank: rank + dir, file: file + 1 })
+        );
+    }
+    return moves;
+  }
+
+  // Knights: all L-shaped moves (ignore occupation)
+  private getKnightPremoveTargets(position: string): string[] {
+    const { rank, file } = this.squareFromNotation(position);
+    const moves: string[] = [];
+    const offsets = [
+      { dr: -2, df: -1 },
+      { dr: -2, df: 1 },
+      { dr: -1, df: -2 },
+      { dr: -1, df: 2 },
+      { dr: 1, df: -2 },
+      { dr: 1, df: 2 },
+      { dr: 2, df: -1 },
+      { dr: 2, df: 1 },
+    ];
+    for (const { dr, df } of offsets) {
+      const r = rank + dr,
+        f = file + df;
+      if (r >= 0 && r < 8 && f >= 0 && f < 8) {
+        moves.push(this.notationFromSquare({ rank: r, file: f }));
+      }
+    }
+    return moves;
+  }
+
+  // Sliding pieces: all squares in each direction (ignore occupation)
+  private getSlidingPremoveTargets(
+    position: string,
+    directions: { dr: number; df: number }[]
+  ): string[] {
+    const square = this.squareFromNotation(position);
+    const moves: string[] = [];
+
+    for (const { dr, df } of directions) {
+      let r = square.rank + dr;
+      let f = square.file + df;
+
+      while (r >= 0 && r < 8 && f >= 0 && f < 8) {
+        moves.push(this.notationFromSquare({ rank: r, file: f }));
+        r += dr;
+        f += df;
+      }
+    }
+
+    return moves;
+  }
+
+  // Get all potential king moves for premoves (including castling)
+  private getKingPremoveTargets(position: string): string[] {
+    const square = this.squareFromNotation(position);
+    const moves: string[] = [];
+    const kingOffsets = [
+      { dr: -1, df: -1 },
+      { dr: -1, df: 0 },
+      { dr: -1, df: 1 },
+      { dr: 0, df: -1 },
+      { dr: 0, df: 1 },
+      { dr: 1, df: -1 },
+      { dr: 1, df: 0 },
+      { dr: 1, df: 1 },
+    ];
+
+    // Regular king moves
+    for (const { dr, df } of kingOffsets) {
+      const r = square.rank + dr;
+      const f = square.file + df;
+
+      if (r >= 0 && r < 8 && f >= 0 && f < 8) {
+        moves.push(this.notationFromSquare({ rank: r, file: f }));
+      }
+    }
+
+    // Add castling targets (kingside and queenside)
+    // For premoves, we'll add them without checking current game state
+    if (square.file === 4 && (square.rank === 0 || square.rank === 7)) {
+      moves.push(this.notationFromSquare({ rank: square.rank, file: 6 })); // Kingside
+      moves.push(this.notationFromSquare({ rank: square.rank, file: 2 })); // Queenside
+    }
+
+    return moves;
   }
 
   // Check if a move is safe (doesn't put own king in check)
@@ -1054,7 +1225,15 @@ export class ChessEngine {
     this.gameState.blackKingInCheck = lastMove.blackKingInCheck;
     this.gameState.winner = lastMove.winner;
     this.gameState.selectedSquare = null;
-    this.gameState.highlightedSquares = [];
+    this.gameState.highlightedSquares =
+      this.gameState.moveHistory.length > 0
+        ? [
+            this.gameState.moveHistory[this.gameState.moveHistory.length - 1]
+              .origin,
+            this.gameState.moveHistory[this.gameState.moveHistory.length - 1]
+              .destination,
+          ]
+        : [];
     this.gameState.validMoves = [];
 
     return this.gameState;
@@ -1077,11 +1256,11 @@ export class ChessEngine {
     return result.isValid ? result.newGameState : this.gameState;
   }
 
-  // Convert FEN notation for external engine compatibility
+  // Convert board to FEN notation for external engine compatibility
   convertBoardArrayToFEN(): string {
     let fen = '';
 
-    // Board position
+    // 1. Board position
     for (let rank = 0; rank < 8; rank++) {
       let emptyCount = 0;
       for (let file = 0; file < 8; file++) {
@@ -1131,45 +1310,35 @@ export class ChessEngine {
     fen += ' ' + (this.gameState.currentPlayer === 'white' ? 'w' : 'b');
 
     // Castling rights
-    let castling = '';
+    let castlingRights = '';
     // White king/rook
-    const wK = this.gameState.boardArray[7][4] === 'WK';
-    const wR1 = this.gameState.boardArray[7][0] === 'WR1';
-    const wR2 = this.gameState.boardArray[7][7] === 'WR2';
+    const whiteKing = this.gameState.boardArray[7][4] === 'WK';
+    const whiteRook1 = this.gameState.boardArray[7][0] === 'WR1';
+    const whiteRook2 = this.gameState.boardArray[7][7] === 'WR2';
     // Black king/rook
-    const bK = this.gameState.boardArray[0][4] === 'BK';
-    const bR1 = this.gameState.boardArray[0][0] === 'BR1';
-    const bR2 = this.gameState.boardArray[0][7] === 'BR2';
-    if (wK && wR2) castling += 'K';
-    if (wK && wR1) castling += 'Q';
-    if (bK && bR2) castling += 'k';
-    if (bK && bR1) castling += 'q';
-    if (!castling) castling = '-';
-    fen += ' ' + castling;
+    const blackKing = this.gameState.boardArray[0][4] === 'BK';
+    const blackRook1 = this.gameState.boardArray[0][0] === 'BR1';
+    const blackRook2 = this.gameState.boardArray[0][7] === 'BR2';
+    if (whiteKing && whiteRook2) castlingRights += 'K';
+    if (whiteKing && whiteRook1) castlingRights += 'Q';
+    if (blackKing && blackRook2) castlingRights += 'k';
+    if (blackKing && blackRook1) castlingRights += 'q';
+    if (!castlingRights) castlingRights = '-';
+    fen += ' ' + castlingRights;
 
-    // En passant
-    let enPassant = '-';
-    if (
-      this.gameState.enPassantStatus &&
-      this.gameState.enPassantStatus.square
-    ) {
-      enPassant = this.gameState.enPassantStatus.square;
-    }
-    fen += ' ' + enPassant;
+    // En passant - disabled for chess API compatibility
+    // The chess API we're using doesn't accept standard FEN en passant notation
+    let enPassantSquare = '-';
+    // if (this.gameState.enPassantStatus?.square) {
+    //   enPassantSquare = this.gameState.enPassantStatus.square;
+    // }
+    fen += ' ' + enPassantSquare;
 
     // Halfmove clock
-    fen +=
-      ' ' +
-      (typeof this.gameState.halfMoveCounter === 'number'
-        ? this.gameState.halfMoveCounter
-        : 0);
+    fen += ' ' + (this.gameState.halfMoveCounter ?? 0);
 
     // Fullmove number
-    fen +=
-      ' ' +
-      (typeof this.gameState.fullMoveCounter === 'number'
-        ? this.gameState.fullMoveCounter
-        : 1);
+    fen += ' ' + (this.gameState.fullMoveCounter ?? 1);
 
     return fen;
   }
