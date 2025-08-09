@@ -377,6 +377,32 @@ export class ChessEngine {
     return moves.filter((move) => this.isMoveSafe(piece, position, move));
   }
 
+  // Get available moves (no full validation, just basic piece movement rules)
+  getAvailableMoves(piece: string, position: string): string[] {
+    const pieceType = this.getPieceType(piece);
+    const pieceColor = this.getPieceColor(piece);
+
+    if (!pieceType || !pieceColor) return [];
+
+    // Based on piece type, get potential moves (no validation)
+    switch (pieceType) {
+      case 'pawn':
+        return this.getPawnMoves(position, pieceColor);
+      case 'knight':
+        return this.getKnightMoves(position, pieceColor);
+      case 'bishop':
+        return this.getBishopMoves(position, pieceColor);
+      case 'rook':
+        return this.getRookMoves(position, pieceColor);
+      case 'queen':
+        return this.getQueenMoves(position, pieceColor);
+      case 'king':
+        return this.getKingMoves(position, pieceColor);
+      default:
+        return [];
+    }
+  }
+
   // Check if a move is safe (doesn't put own king in check)
   isMoveSafe(piece: string, from: string, to: string): boolean {
     // Create a temporary game state with the move applied
