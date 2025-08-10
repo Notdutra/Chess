@@ -77,7 +77,6 @@ NEXT_PUBLIC_CHESS_API_MAX_RECONNECTS=3            # Retry attempts
 ## Roadmap
 
 - **Enhanced AI Features**:
-
   - ✅ Remote engine integration via chess-api.com
   - ✅ Configurable bot strength and behavior
   - ✅ Smart color detection and loading indicators
@@ -85,7 +84,6 @@ NEXT_PUBLIC_CHESS_API_MAX_RECONNECTS=3            # Retry attempts
   - ⏳ Multiple AI personality modes
 
 - **Game Features**:
-
   - **Castling logic** (implemented in engine)
   - **Piece promotion popup** (enhanced UI)
   - **En passant** (implemented in engine)
@@ -93,7 +91,6 @@ NEXT_PUBLIC_CHESS_API_MAX_RECONNECTS=3            # Retry attempts
   - **Move history and analysis**
 
 - **Multiplayer & Social**:
-
   - **Online multiplayer** (planned)
   - **User accounts and authentication**
   - **Game analysis and review**

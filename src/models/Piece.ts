@@ -1,11 +1,5 @@
-export type PieceColor = 'white' | 'black';
-export type PieceType =
-  | 'pawn'
-  | 'rook'
-  | 'knight'
-  | 'bishop'
-  | 'queen'
-  | 'king';
+export type PieceColor = "white" | "black";
+export type PieceType = "pawn" | "rook" | "knight" | "bishop" | "queen" | "king";
 
 export interface Piece {
   id: string; // Unique identifier for the piece (e.g., "WP1")
@@ -15,30 +9,30 @@ export interface Piece {
 }
 
 export const createPiece = (id: string): Piece => {
-  const color = id[0] === 'W' ? 'white' : 'black';
+  const color = id[0] === "W" ? "white" : "black";
 
   let type: PieceType;
   switch (id[1]) {
-    case 'P':
-      type = 'pawn';
+    case "P":
+      type = "pawn";
       break;
-    case 'R':
-      type = 'rook';
+    case "R":
+      type = "rook";
       break;
-    case 'N':
-      type = 'knight';
+    case "N":
+      type = "knight";
       break;
-    case 'B':
-      type = 'bishop';
+    case "B":
+      type = "bishop";
       break;
-    case 'Q':
-      type = 'queen';
+    case "Q":
+      type = "queen";
       break;
-    case 'K':
-      type = 'king';
+    case "K":
+      type = "king";
       break;
     default:
-      type = 'pawn'; // Default fallback
+      type = "pawn"; // Default fallback
   }
 
   return {

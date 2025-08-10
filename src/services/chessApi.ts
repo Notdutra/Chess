@@ -9,7 +9,7 @@ export interface ChessApiOptions {
 }
 
 export interface ChessApiResponse {
-  type: 'move' | 'bestmove' | 'info';
+  type: "move" | "bestmove" | "info";
   lan?: string; // Long algebraic notation like "e2e4"
   from?: string;
   to?: string;
@@ -38,18 +38,13 @@ export class ChessApi {
 
   constructor(options: ChessApiOptions = {}) {
     // Use environment variables with fallbacks
-    this.url =
-      process.env.NEXT_PUBLIC_CHESS_API_URL || 'wss://chess-api.com/v1';
-    this.maxReconnects = parseInt(
-      process.env.NEXT_PUBLIC_CHESS_API_MAX_RECONNECTS || '3'
-    );
+    this.url = process.env.NEXT_PUBLIC_CHESS_API_URL || "wss://chess-api.com/v1";
+    this.maxReconnects = parseInt(process.env.NEXT_PUBLIC_CHESS_API_MAX_RECONNECTS || "3");
 
     this.options = {
-      depth: parseInt(process.env.NEXT_PUBLIC_CHESS_API_DEPTH || '1'),
-      variants: parseInt(process.env.NEXT_PUBLIC_CHESS_API_VARIANTS || '1'),
-      maxThinkingTime: parseInt(
-        process.env.NEXT_PUBLIC_CHESS_API_MAX_THINKING_TIME || '5'
-      ),
+      depth: parseInt(process.env.NEXT_PUBLIC_CHESS_API_DEPTH || "1"),
+      variants: parseInt(process.env.NEXT_PUBLIC_CHESS_API_VARIANTS || "1"),
+      maxThinkingTime: parseInt(process.env.NEXT_PUBLIC_CHESS_API_MAX_THINKING_TIME || "5"),
       ...options, // Allow override of env vars with explicit options
     };
 
@@ -72,18 +67,18 @@ export class ChessApi {
           // Only log errors, not all responses
 
           // We want the final bestmove
-          if (data.type === 'bestmove' && data.lan && this.onMoveCallback) {
+          if (data.type === "bestmove" && data.lan && this.onMoveCallback) {
             this.onMoveCallback(data.lan);
             if (this.loadingCallback) this.loadingCallback(false);
           }
         } catch (e) {
-          console.error('Error parsing chess API response:', e);
+          console.error("Error parsing chess API response:", e);
           if (this.onErrorCallback) this.onErrorCallback(e);
         }
       };
 
       this.ws.onerror = (err) => {
-        console.error('Chess API WebSocket error:', err);
+        console.error("Chess API WebSocket error:", err);
         if (this.onErrorCallback) this.onErrorCallback(err);
         this.tryReconnect();
         reject(err);
@@ -102,11 +97,9 @@ export class ChessApi {
       // Silently reconnecting...
       setTimeout(() => this.connect(), 1000 * this.reconnectAttempts);
     } else {
-      console.error('Failed to reconnect to chess-api.com after max attempts');
+      console.error("Failed to reconnect to chess-api.com after max attempts");
       if (this.onErrorCallback)
-        this.onErrorCallback(
-          'API unavailable after multiple reconnection attempts'
-        );
+        this.onErrorCallback("API unavailable after multiple reconnection attempts");
     }
   }
 
@@ -116,7 +109,7 @@ export class ChessApi {
       try {
         await this.connect();
       } catch (error) {
-        throw new Error('Failed to establish WebSocket connection');
+        throw new Error("Failed to establish WebSocket connection");
       }
     }
 
@@ -134,36 +127,32 @@ export class ChessApi {
           const data = JSON.parse(event.data);
 
           // Handle final move response
-          if (data.type === 'bestmove' || (data.bestmove && data.lan)) {
+          if (data.type === "bestmove" || (data.bestmove && data.lan)) {
             clearTimeout(timeout);
-            this.ws?.removeEventListener('message', handleResponse);
+            this.ws?.removeEventListener("message", handleResponse);
             resolve(data.lan || data.bestmove);
           }
           // Handle error responses
-          else if (data.type === 'error') {
+          else if (data.type === "error") {
             clearTimeout(timeout);
-            this.ws?.removeEventListener('message', handleResponse);
-            reject(new Error(data.text || 'Chess API error'));
+            this.ws?.removeEventListener("message", handleResponse);
+            reject(new Error(data.text || "Chess API error"));
           }
         } catch (error) {
           clearTimeout(timeout);
-          this.ws?.removeEventListener('message', handleResponse);
-          console.error('Error parsing chess API response:', error);
+          this.ws?.removeEventListener("message", handleResponse);
+          console.error("Error parsing chess API response:", error);
           reject(error);
         }
       };
 
       // Add timeout to prevent bot from getting stuck thinking
       const timeout = setTimeout(() => {
-        this.ws?.removeEventListener('message', handleResponse);
-        reject(
-          new Error(
-            'Bot request timeout - chess-api.com took too long to respond'
-          )
-        );
+        this.ws?.removeEventListener("message", handleResponse);
+        reject(new Error("Bot request timeout - chess-api.com took too long to respond"));
       }, 20000); // 20 second timeout
 
-      this.ws!.addEventListener('message', handleResponse);
+      this.ws!.addEventListener("message", handleResponse);
       this.ws!.send(JSON.stringify(message));
     });
   }

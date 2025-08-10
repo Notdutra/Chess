@@ -1,16 +1,16 @@
-import { getBasePath } from '../utils/paths';
+import { getBasePath } from "../utils/paths";
 
 const SOUND_NAMES = [
-  'capture',
-  'castle',
-  'check',
-  'gameEnd',
-  'gameStart',
-  'illegalMove',
-  'opponentMove',
-  'playerMove',
-  'premove',
-  'promote',
+  "capture",
+  "castle",
+  "check",
+  "gameEnd",
+  "gameStart",
+  "illegalMove",
+  "opponentMove",
+  "playerMove",
+  "premove",
+  "promote",
 ];
 
 class SoundManager {
@@ -20,10 +20,9 @@ class SoundManager {
   globalVolume: number;
 
   constructor() {
-    this.audioContext = new (window.AudioContext ||
-      (window as any).webkitAudioContext)();
+    this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
     if (!this.audioContext) {
-      throw new Error('Web Audio API is not supported in this browser.');
+      throw new Error("Web Audio API is not supported in this browser.");
     }
     this.audioBuffers = new Map();
     this.preloaded = false;
@@ -31,7 +30,7 @@ class SoundManager {
   }
 
   async _ensureAudioContextReady(): Promise<void> {
-    if (this.audioContext.state === 'suspended') {
+    if (this.audioContext.state === "suspended") {
       await this.audioContext.resume();
     }
   }
@@ -44,9 +43,7 @@ class SoundManager {
         try {
           const response = await fetch(`${basePath}/sounds/${name}.mp3`);
           const arrayBuffer = await response.arrayBuffer();
-          const audioBuffer = await this.audioContext.decodeAudioData(
-            arrayBuffer
-          );
+          const audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
           this.audioBuffers.set(name, audioBuffer);
         } catch (error) {
           console.error(`Failed to load sound: ${name}`, error);
@@ -82,35 +79,35 @@ class SoundManager {
 
   playMoveSound(
     moveType:
-      | 'capture'
-      | 'castle'
-      | 'check'
-      | 'checkmate'
-      | 'gameEnd'
-      | 'gameStart'
-      | 'illegalMove'
-      | 'opponentMove'
-      | 'playerMove'
-      | 'premove'
-      | 'promote'
+      | "capture"
+      | "castle"
+      | "check"
+      | "checkmate"
+      | "gameEnd"
+      | "gameStart"
+      | "illegalMove"
+      | "opponentMove"
+      | "playerMove"
+      | "premove"
+      | "promote"
   ): void {
-    if (moveType === 'checkmate') {
-      this.play('check', 1);
-      this.play('gameEnd', 1);
+    if (moveType === "checkmate") {
+      this.play("check", 1);
+      this.play("gameEnd", 1);
       return;
     }
-    const sound = SOUND_NAMES.includes(moveType) ? moveType : 'playerMove';
+    const sound = SOUND_NAMES.includes(moveType) ? moveType : "playerMove";
     this.play(sound, 1);
   }
 
-  playGameStateSound(state: 'start' | 'end' | 'draw'): void {
+  playGameStateSound(state: "start" | "end" | "draw"): void {
     switch (state) {
-      case 'start':
-        this.play('gameStart', 1);
+      case "start":
+        this.play("gameStart", 1);
         break;
-      case 'end':
-      case 'draw':
-        this.play('gameEnd', 1);
+      case "end":
+      case "draw":
+        this.play("gameEnd", 1);
         break;
     }
   }

@@ -6,7 +6,7 @@
 }
 
 .drag-over::after {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 0;
@@ -24,7 +24,7 @@
 
 .selected.light::after,
 .selected.dark::after {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 0;
@@ -78,7 +78,7 @@
 
 .highlight.light::after,
 .highlight.dark::after {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 0;
@@ -95,7 +95,7 @@
 
 .premove.light::after,
 .premove.dark::after {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 0;
@@ -107,7 +107,7 @@
 
 .legal-move.light::before {
   background-color: rgb(202, 203, 179); /* Circle color for light square */
-  content: '';
+  content: "";
   position: absolute;
   width: 33.33%;
   height: 33.33%;
@@ -119,7 +119,7 @@
 
 .legal-move.dark::before {
   background-color: rgb(99, 128, 70); /* Circle color for dark square */
-  content: '';
+  content: "";
   position: absolute;
   width: 33.33%;
   height: 33.33%;
@@ -130,7 +130,7 @@
 }
 
 .capture-hint::before {
-  content: '';
+  content: "";
   position: absolute;
   width: 100%;
   height: 100%;
@@ -150,7 +150,7 @@
 }
 
 .hover-square::after {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 0;

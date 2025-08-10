@@ -1,4 +1,4 @@
-import Document, { Html, Head, Main, NextScript } from 'next/document';
+import Document, { Html, Head, Main, NextScript } from "next/document";
 
 class MyDocument extends Document {
   render() {
@@ -6,11 +6,7 @@ class MyDocument extends Document {
       <Html lang="en">
         <Head>
           <meta charSet="UTF-8" />
-          <link
-            rel="icon"
-            type="image/svg+xml"
-            href="/favicon.svg"
-          />
+          <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
         </Head>
         <body>
           <Main />

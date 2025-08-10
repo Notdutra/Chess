@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
-import Piece from './Piece';
+import React, { useState } from "react";
+import Piece from "./Piece";
 
 interface SquareProps {
   squareName: string;
-  color: 'light' | 'dark';
+  color: "light" | "dark";
   piece?: string;
   onSquareMouseDown?: (squareName: string) => void;
   onPieceMouseDown?: (
@@ -29,6 +29,9 @@ interface SquareProps {
   squareSize: number;
   isDragging?: boolean;
   isDragOver?: boolean;
+  isAnimating?: boolean;
+  animationFromSquare?: string;
+  animationToSquare?: string;
 }
 
 function Square({
@@ -51,20 +54,23 @@ function Square({
   squareSize,
   isDragging,
   isDragOver,
+  isAnimating,
+  animationFromSquare,
+  animationToSquare,
 }: SquareProps) {
   // Compute className after all variables are defined
   const className = [
     color,
-    'square',
-    isHighlighted ? 'highlight' : '',
-    isLegalMove && !isCaptureHint ? 'legal-move' : '',
-    isCaptureHint ? 'capture-hint' : '',
-    isSelected ? 'selected' : '',
-    isDragOver ? 'drag-over' : '',
-    isPremove ? 'premove' : '',
+    "square",
+    isHighlighted ? "highlight" : "",
+    isLegalMove && !isCaptureHint ? "legal-move" : "",
+    isCaptureHint ? "capture-hint" : "",
+    isSelected ? "selected" : "",
+    isDragOver ? "drag-over" : "",
+    isPremove ? "premove" : "",
   ]
     .filter(Boolean)
-    .join(' ');
+    .join(" ");
 
   // Handle drag enter to add visual feedback
   // isDragOver is now controlled by prop from Chessboard
@@ -75,11 +81,11 @@ function Square({
   // Compute cursor style
   let cursorStyle = undefined;
   if (isDragging) {
-    cursorStyle = 'grabbing';
+    cursorStyle = "grabbing";
   } else if (isLegalMove || isCaptureHint) {
-    cursorStyle = 'pointer';
+    cursorStyle = "pointer";
   } else if (piece) {
-    cursorStyle = 'grab';
+    cursorStyle = "grab";
   }
 
   return (
@@ -89,27 +95,23 @@ function Square({
       onMouseDown={() => onSquareMouseDown?.(squareName)}
       style={
         {
-          '--border-width': `${(squareSize * 8.889) / 100}px`,
-          '--hover-border-width': `${(squareSize * 5) / 100}px`,
+          "--border-width": `${(squareSize * 8.889) / 100}px`,
+          "--hover-border-width": `${(squareSize * 5) / 100}px`,
           cursor: cursorStyle,
         } as React.CSSProperties
-      }>
+      }
+    >
       {piece && (
         <Piece
           key={squareName}
           piece={piece}
           squareName={squareName}
-          onMouseDown={
-            onPieceMouseDown
-              ? (e) => onPieceMouseDown(e, piece, squareName)
-              : undefined
-          }
+          isAnimating={isAnimating}
+          animationFromSquare={animationFromSquare}
+          animationToSquare={animationToSquare}
+          onMouseDown={onPieceMouseDown ? (e) => onPieceMouseDown(e, piece, squareName) : undefined}
           onDragEnd={onPieceDragEnd}
-          onDragStart={
-            onPieceDragStart
-              ? (e) => onPieceDragStart(e, piece, squareName)
-              : undefined
-          }
+          onDragStart={onPieceDragStart ? (e) => onPieceDragStart(e, piece, squareName) : undefined}
         />
       )}
     </div>

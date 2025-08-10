@@ -7,8 +7,14 @@
   object-fit: contain;
   user-select: none;
   -webkit-user-select: none;
-  transition: transform 0.1s ease-in-out;
   z-index: 2;
+}
+
+.piece.animating {
+  z-index: 2;
+  will-change: transform;
+  transition: transform 1s ease-out;
+  animation-duration: 1s;
 }
 
 .piece:active {

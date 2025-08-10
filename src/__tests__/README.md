@@ -10,4 +10,3 @@ This directory contains tests for the Chess application.
 ## Running Tests
 
 Use `pnpm test` to run all tests.
-

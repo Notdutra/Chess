@@ -1,6 +1,6 @@
-import dynamic from 'next/dynamic';
+import dynamic from "next/dynamic";
 
-const ChessApp = dynamic(() => import('@/components/layout/App'), {
+const ChessApp = dynamic(() => import("@/components/layout/App"), {
   ssr: false,
 });
 

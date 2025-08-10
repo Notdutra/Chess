@@ -3,19 +3,16 @@
 ## Main Issues with Current Implementation
 
 1. **DOM Dependencies in Game Logic**
-
    - Game logic code directly manipulates DOM elements
    - CSS classes are modified inside game logic functions
    - Piece positions are determined by querying DOM elements
 
 2. **Global Mutable State**
-
    - Many global variables in GameLogic.tsx
    - Side effects across functions due to shared state
    - Difficult to track state changes
 
 3. **Type Safety**
-
    - Extensive use of `any` type
    - Insufficient interfaces/types for game objects
    - Inconsistent typing approach
@@ -48,13 +45,11 @@ We've created a `ChessEngine` class that:
 ### 3. UI Component Refactoring Plan
 
 1. **Chessboard Component**
-
    - Use the ChessEngine to manage game state
    - Pass only display-relevant state to child components
    - Handle UI events and delegate logic to ChessEngine
 
 2. **Piece Component**
-
    - Make it a purely presentational component
    - Remove direct DOM manipulation
    - Use CSS classes controlled by parent components
@@ -67,30 +62,25 @@ We've created a `ChessEngine` class that:
 ### 4. Implementation Strategy
 
 1. **Step 1: Create Models and Engine** ✅
-
    - Define clear interfaces for game objects
    - Create a pure chess engine independent of DOM
 
 2. **Step 2: Refactor Chessboard Component** ✅
-
    - Create new version that uses ChessEngine
    - Remove all direct DOM manipulation
    - Implement event handlers that use ChessEngine API
 
 3. **Step 3: Update Square and Piece Components**
-
    - Remove DOM manipulations
    - Make them controlled by props from parent
    - Ensure drag-and-drop works without DOM dependencies
 
 4. **Step 4: Complete Move Logic in ChessEngine**
-
    - Implement all special moves (castling, en passant, promotion)
    - Add check/checkmate detection
    - Implement move validation
 
 5. **Step 5: Sound and Feedback**
-
    - Move sound logic to a higher-level component
    - Connect sound events to ChessEngine state changes
    - Use a pub/sub pattern for game events
@@ -103,19 +93,16 @@ We've created a `ChessEngine` class that:
 ## Benefits of Refactored Implementation
 
 1. **Maintainability**
-
    - Clear separation between UI and game logic
    - Easier to understand and modify chess rules
    - Better code organization
 
 2. **Testability**
-
    - Pure functions are easier to test
    - Isolated components can be tested individually
    - Reduced side effects make tests more reliable
 
 3. **Extensibility**
-
    - Easy to add new features (e.g., time control, variants)
    - Engine can be used with different UIs
    - Game state can be serialized/deserialized
@@ -128,13 +115,11 @@ We've created a `ChessEngine` class that:
 ## Migration Plan
 
 1. **Parallel Implementation**
-
    - Keep existing code working while implementing new architecture
    - Create new components alongside existing ones
    - Use feature flags to toggle between implementations
 
 2. **Incremental Testing**
-
    - Test each refactored component individually
    - Compare behavior with original implementation
    - Fix issues before proceeding to next component

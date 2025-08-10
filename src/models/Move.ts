@@ -1,5 +1,5 @@
-import { PieceColor } from './Piece';
-import { GameState } from './GameState';
+import { PieceColor } from "./Piece";
+import { GameState } from "./GameState";
 
 export interface Move {
   from: string; // Starting position (e.g., "e2")
@@ -24,8 +24,8 @@ export interface MoveResult {
   newGameState: GameState;
   move: Move;
   isValid: boolean;
-  moveType: 'normal' | 'capture' | 'castle' | 'promotion' | 'en-passant';
-  specialEvent?: 'check' | 'checkmate' | 'stalemate';
+  moveType: "normal" | "capture" | "castle" | "promotion" | "en-passant";
+  specialEvent?: "check" | "checkmate" | "stalemate";
 }
 
 export interface LegalMovesMap {
@@ -63,12 +63,10 @@ export const moveToAlgebraic = (move: Move): string => {
 };
 
 // Helper function to parse square position
-const getSquareFromPosition = (
-  position: string
-): { rank: number; file: number } | null => {
+const getSquareFromPosition = (position: string): { rank: number; file: number } | null => {
   if (position.length !== 2) return null;
 
-  const file = position.charCodeAt(0) - 'a'.charCodeAt(0);
+  const file = position.charCodeAt(0) - "a".charCodeAt(0);
   const rank = 8 - parseInt(position[1]);
 
   if (file < 0 || file > 7 || rank < 0 || rank > 7) return null;

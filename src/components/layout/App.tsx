@@ -1,5 +1,5 @@
-import Chessboard from '../../components/chess/Chessboard';
-import React from 'react';
+import Chessboard from "../../components/chess/Chessboard";
+import React from "react";
 
 const App: React.FC = () => {
   return (
