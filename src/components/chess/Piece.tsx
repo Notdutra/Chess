@@ -28,6 +28,7 @@ interface PieceProps {
   onMouseDown?: (e: React.MouseEvent<HTMLImageElement>, piece: string, squareName: string) => void;
   onDragEnd?: React.DragEventHandler<HTMLImageElement>;
   onDragStart?: (e: React.DragEvent<HTMLImageElement>, piece: string, squareName: string) => void;
+  style?: React.CSSProperties;
 }
 
 const Piece: React.FC<PieceProps> = ({
@@ -37,6 +38,7 @@ const Piece: React.FC<PieceProps> = ({
   isAnimating,
   isSelected,
   onMouseDown,
+  style,
 }) => {
   // No local drag state or effects needed
   const pieceImages = getPieceImages();
@@ -66,6 +68,7 @@ const Piece: React.FC<PieceProps> = ({
         userSelect: "none",
         touchAction: "none",
         cursor: isDragging ? "grabbing" : "inherit",
+        ...style,
       }}
       onMouseDown={onMouseDown ? (e) => onMouseDown(e, piece, squareName || "") : undefined}
     />
