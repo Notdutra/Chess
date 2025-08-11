@@ -1,10 +1,7 @@
-import { GameState, MoveRecord, EnPassantStatus } from "../models/GameState";
+import { GameState } from "../models/GameState";
 import { Move, MoveResult } from "../models/Move";
-import { PieceColor, PieceType, createPiece } from "../models/Piece";
+import { PieceColor } from "../models/Piece";
 import { Square } from "../models/Square";
-
-const boardLetters = ["a", "b", "c", "d", "e", "f", "g", "h"];
-
 export class ChessEngine {
   private gameState: GameState;
 
@@ -101,14 +98,14 @@ export class ChessEngine {
   }
 
   // Get the type of a piece
-  getPieceType(piece: string | null): PieceType | null {
+  getPieceType(piece: string | null): string | null {
     if (!piece) return null;
 
     if (piece.includes("PromotedPawn")) {
       piece = piece.split("PromotedPawn")[0];
     }
 
-    const typeMap: Record<string, PieceType> = {
+    const typeMap: Record<string, string> = {
       P: "pawn",
       R: "rook",
       N: "knight",
@@ -207,9 +204,8 @@ export class ChessEngine {
 
     // Special moves handling
     // Castling
-    if (pieceType === "king") {
-      const rankIndex = this.gameState.currentPlayer === "white" ? 7 : 0;
 
+    if (pieceType === "king") {
       // Kingside castling
       if (
         from === (this.gameState.currentPlayer === "white" ? "e1" : "e8") &&
@@ -1070,7 +1066,6 @@ export class ChessEngine {
     }
 
     const rank = color === "white" ? 7 : 0;
-    const kingFile = 4; // King starts at e1/e8
 
     const rookFile = side === "kingside" ? 7 : 0;
     const rookPosition = this.notationFromSquare({ rank, file: rookFile });
@@ -1242,7 +1237,7 @@ export class ChessEngine {
 
     // En passant - disabled for chess API compatibility
     // The chess API we're using doesn't accept standard FEN en passant notation
-    let enPassantSquare = "-";
+    const enPassantSquare = "-";
     // if (this.gameState.enPassantStatus?.square) {
     //   enPassantSquare = this.gameState.enPassantStatus.square;
     // }

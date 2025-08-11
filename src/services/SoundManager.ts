@@ -20,7 +20,9 @@ class SoundManager {
   globalVolume: number;
 
   constructor() {
-    this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    this.audioContext = new (window.AudioContext ||
+      (window as typeof window & { webkitAudioContext?: typeof AudioContext })
+        .webkitAudioContext)();
     if (!this.audioContext) {
       throw new Error("Web Audio API is not supported in this browser.");
     }

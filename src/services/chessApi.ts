@@ -5,7 +5,7 @@ export interface ChessApiOptions {
   depth?: number;
   variants?: number;
   maxThinkingTime?: number;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export interface ChessApiResponse {
@@ -33,7 +33,7 @@ export class ChessApi {
   private reconnectAttempts = 0;
   private maxReconnects: number;
   private onMoveCallback?: (move: string) => void;
-  private onErrorCallback?: (err: any) => void;
+  private onErrorCallback?: (err: unknown) => void;
   private loadingCallback?: (loading: boolean) => void;
 
   constructor(options: ChessApiOptions = {}) {
@@ -108,7 +108,7 @@ export class ChessApi {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
       try {
         await this.connect();
-      } catch (error) {
+      } catch {
         throw new Error("Failed to establish WebSocket connection");
       }
     }
@@ -161,7 +161,7 @@ export class ChessApi {
     this.onMoveCallback = cb;
   }
 
-  onError(cb: (err: any) => void) {
+  onError(cb: (err: unknown) => void) {
     this.onErrorCallback = cb;
   }
 

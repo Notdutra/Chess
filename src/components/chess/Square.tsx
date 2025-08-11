@@ -1,4 +1,3 @@
-import React, { useState } from "react";
 import Piece from "./Piece";
 
 interface SquareProps {
@@ -17,10 +16,6 @@ interface SquareProps {
     squareName: string
   ) => void;
   onPieceDragEnd?: (e: React.DragEvent<HTMLImageElement>) => void;
-  onDrop?: (e: React.DragEvent<HTMLDivElement>) => void;
-  onDragOver?: (e: React.DragEvent<HTMLDivElement>) => void;
-  onMouseEnter?: (e: React.MouseEvent<HTMLDivElement>) => void;
-  onMouseLeave?: (e: React.MouseEvent<HTMLDivElement>) => void;
   isSelected?: boolean;
   isHighlighted?: boolean;
   isLegalMove?: boolean;
@@ -30,11 +25,8 @@ interface SquareProps {
   isDragging?: boolean;
   isDragOver?: boolean;
   isAnimating?: boolean;
-  animationFromSquare?: string;
-  animationToSquare?: string;
 }
-
-function Square({
+const Square: React.FC<SquareProps> = ({
   squareName,
   color,
   piece,
@@ -42,10 +34,6 @@ function Square({
   onPieceMouseDown,
   onPieceDragStart,
   onPieceDragEnd,
-  onDrop,
-  onDragOver,
-  onMouseEnter,
-  onMouseLeave,
   isSelected,
   isHighlighted,
   isLegalMove,
@@ -55,10 +43,7 @@ function Square({
   isDragging,
   isDragOver,
   isAnimating,
-  animationFromSquare,
-  animationToSquare,
-}: SquareProps) {
-  // Compute className after all variables are defined
+}) => {
   const className = [
     color,
     "square",
@@ -72,7 +57,6 @@ function Square({
     .filter(Boolean)
     .join(" ");
 
-  // Handle drag enter to add visual feedback
   // isDragOver is now controlled by prop from Chessboard
   // No local hover state; drag-over is fully controlled by isDragOver prop
 
@@ -85,7 +69,7 @@ function Square({
   } else if (isLegalMove || isCaptureHint) {
     cursorStyle = "pointer";
   } else if (piece) {
-    cursorStyle = "grab";
+    cursorStyle = "pointer";
   }
 
   return (
@@ -107,8 +91,6 @@ function Square({
           piece={piece}
           squareName={squareName}
           isAnimating={isAnimating}
-          animationFromSquare={animationFromSquare}
-          animationToSquare={animationToSquare}
           onMouseDown={onPieceMouseDown ? (e) => onPieceMouseDown(e, piece, squareName) : undefined}
           onDragEnd={onPieceDragEnd}
           onDragStart={onPieceDragStart ? (e) => onPieceDragStart(e, piece, squareName) : undefined}
@@ -116,6 +98,6 @@ function Square({
       )}
     </div>
   );
-}
+};
 
 export default Square;

@@ -322,7 +322,7 @@ const Chessboard = () => {
         // Always use the latest engine state for bot move
         executeBotMove(move, ChessEngineInstance.getGameState());
       });
-      api.onError((error: any) => {
+      api.onError((error: unknown) => {
         console.error("Chess API error:", error);
         setIsBotThinking(false);
       });
@@ -683,7 +683,6 @@ const Chessboard = () => {
       setIsDragging(false);
       draggingPieceRef.current = null;
       draggingFromSquareRef.current = null;
-      const pieceElement = e.target as HTMLImageElement;
       document.body.classList.add("dragging");
       document.body.style.cursor = "grabbing";
       document.body.style.cursor = "";
@@ -727,7 +726,7 @@ const Chessboard = () => {
 
     // (removed duplicate declaration)
 
-    const startDrag = (evt: MouseEvent | Event) => {
+    const startDrag = () => {
       if (dragStarted) return;
       dragStarted = true;
       // Only now hide the original piece
@@ -745,7 +744,7 @@ const Chessboard = () => {
 
     const dragImageMoveHandler = (evt: Event) => {
       if (!dragStarted) {
-        startDrag(evt);
+        startDrag();
       }
       updateDragImagePosition(evt);
     };
@@ -785,7 +784,8 @@ const Chessboard = () => {
     const currentPieceColor =
       piece && piece[0] === "W" ? "white" : piece && piece[0] === "B" ? "black" : null;
 
-    const isPremove =
+    // Check if this is a premove or normal move
+    const canMakePremove =
       (isDragging && currentPieceColor === playerRef.current) ||
       (!isDragging &&
         gameState.selectedSquare === fromSquare &&
@@ -822,7 +822,7 @@ const Chessboard = () => {
         executeChessMove(fromSquare, dropSquare);
         handleMoveComplete();
       });
-    } else {
+    } else if (canMakePremove) {
       // Not player's turn: queue as premove; fallback uses premove moves
       console.log("[handleDrop] Debug premove check:", {
         currentPieceColor,
@@ -895,8 +895,8 @@ const Chessboard = () => {
           // Remove piece from current visual position
           if (gameState.premovePositions[fromSquare]) {
             // Piece is currently in a premove position, remove it from there
-            const { [fromSquare]: removedPiece, ...remainingPositions } =
-              gameState.premovePositions;
+            const remainingPositions = { ...gameState.premovePositions };
+            delete remainingPositions[fromSquare];
             updatedGameState.premovePositions = {
               ...remainingPositions,
               [dropSquare]: piece,
@@ -928,6 +928,13 @@ const Chessboard = () => {
         draggingFromSquareRef.current = null;
         document.body.style.cursor = "grab";
       }
+    } else {
+      // Neither normal move nor premove - invalid
+      console.log("[handleDrop] Invalid move: not valid normal move or premove");
+      setIsDragging(false);
+      draggingPieceRef.current = null;
+      draggingFromSquareRef.current = null;
+      document.body.style.cursor = "grab";
     }
   };
 
@@ -939,9 +946,7 @@ const Chessboard = () => {
     isSelected: boolean,
     isHighlighted: boolean,
     isLegalMove: boolean,
-    isCaptureHint: boolean,
-    isAnimatingFrom?: boolean,
-    isAnimatingTo?: boolean
+    isCaptureHint: boolean
   ) => {
     // Hide the piece in the source and destination squares during animation
     let showPiece = piece;
@@ -982,6 +987,9 @@ const Chessboard = () => {
         console.log("[Animation] requestAnimationFrame: setting animTransform to end");
         setAnimTransform("end");
       });
+    } else if (!animatingPiece) {
+      console.log("[Animation] animatingPiece cleared, resetting animTransform to start");
+      setAnimTransform("start");
     }
   }, [animatingPiece]);
 
@@ -1047,7 +1055,7 @@ const Chessboard = () => {
         const dy = to.top - from.top;
         const transform =
           animTransform === "end" ? `translate(${dx}px, ${dy}px)` : "translate(0, 0)";
-        console.log("[Animation] Render animPieceEl:", {
+        console.log("[Animation][DEBUG] Render animPieceEl:", {
           fromSquare: animatingPiece.fromSquare,
           toSquare: animatingPiece.toSquare,
           from,
@@ -1067,9 +1075,11 @@ const Chessboard = () => {
               width: from.width,
               height: from.height,
               pointerEvents: "none",
-              zIndex: 20,
+              zIndex: 2000,
               transition: "transform 0.3s cubic-bezier(0.4,0,0.2,1)",
               transform,
+              border: "2px dashed red",
+              background: "rgba(255,0,0,0.1)",
             }}
           >
             <Piece
@@ -1079,7 +1089,9 @@ const Chessboard = () => {
             />
           </div>
         );
-        console.log("[Animation] No boardEl found for animPieceEl");
+        console.log("[Animation][DEBUG] Created animPieceEl successfully");
+      } else {
+        console.log("[Animation][DEBUG] No boardEl found for animPieceEl");
       }
     }
 

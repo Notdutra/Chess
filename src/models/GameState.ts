@@ -1,29 +1,5 @@
-import { Piece, PieceType, PieceColor } from "./Piece";
+import { PieceColor, PieceType } from "./Piece";
 import { Square } from "./Square";
-import { Move } from "./Move";
-
-export interface GameState {
-  boardArray: (string | null)[][];
-  currentPlayer: PieceColor;
-  selectedSquare: string | null;
-  whiteKingInCheck: boolean;
-  blackKingInCheck: boolean;
-  checkmate: boolean;
-  stalemate: boolean;
-  winner: PieceColor | null;
-  enPassantStatus: EnPassantStatus | null;
-  moveHistory: MoveRecord[];
-  undoneMoves: MoveRecord[];
-  highlightedSquares: string[];
-  validMoves: string[];
-  premoveSquares: string[]; // Squares that have been premovedto
-  premovePositions: { [square: string]: string }; // Map of where pieces are visually positioned due to premoves (square -> piece)
-  premoveOriginalPositions: { [square: string]: string }; // Map to track original positions of premoved pieces for reset (fromSquare -> piece)
-  halfMoveCounter: number;
-  fullMoveCounter: number;
-  lastMoves: string[];
-  gameMode: "ai" | "human" | "online";
-}
 
 export interface EnPassantStatus {
   square: string;
@@ -41,6 +17,29 @@ export interface MoveRecord {
   whiteKingInCheck: boolean;
   blackKingInCheck: boolean;
   winner: PieceColor | null;
+}
+
+export interface GameState {
+  boardArray: (string | null)[][];
+  currentPlayer: PieceColor;
+  selectedSquare: string | null;
+  whiteKingInCheck: boolean;
+  blackKingInCheck: boolean;
+  checkmate: boolean;
+  stalemate: boolean;
+  winner: PieceColor | null;
+  enPassantStatus: EnPassantStatus | null;
+  moveHistory: MoveRecord[];
+  undoneMoves: MoveRecord[];
+  highlightedSquares: string[];
+  validMoves: string[];
+  premoveSquares: string[];
+  premovePositions: { [square: string]: string };
+  premoveOriginalPositions: { [square: string]: string };
+  halfMoveCounter: number;
+  fullMoveCounter: number;
+  lastMoves: string[];
+  gameMode: "ai" | "human" | "online";
 }
 
 export const createInitialGameState = (): GameState => ({
@@ -109,12 +108,11 @@ export const getPieceType = (piece: string | null): PieceType | null => {
 
   const typeMap: Record<string, PieceType> = {
     P: "pawn",
-    R: "rook",
     N: "knight",
     B: "bishop",
+    R: "rook",
     Q: "queen",
     K: "king",
   };
-
-  return typeMap[piece[1]] || null;
+  return typeMap[piece[1] as keyof typeof typeMap] || null;
 };

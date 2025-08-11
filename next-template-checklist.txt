@@ -1,0 +1,101 @@
+TypeScript React Next.js Project Template Checklist
+
+1. Project Initialization
+- npx create-next-app@latest --typescript
+- cd your-app
+
+2. Install Dev Dependencies
+pnpm add -D eslint prettier eslint-config-prettier eslint-plugin-prettier \
+  @typescript-eslint/eslint-plugin @typescript-eslint/parser \
+  eslint-plugin-react eslint-plugin-react-hooks \
+  eslint-plugin-jsx-a11y \
+  husky lint-staged
+
+3. ESLint Configuration (.eslintrc.json)
+{
+  "root": true,
+  "extends": [
+    "next/core-web-vitals",
+    "plugin:@typescript-eslint/recommended",
+    "plugin:react/recommended",
+    "plugin:react-hooks/recommended",
+    "plugin:jsx-a11y/recommended",
+    "plugin:prettier/recommended"
+  ],
+  "plugins": ["@typescript-eslint"],
+  "rules": {
+    "react/react-in-jsx-scope": "off"
+  }
+}
+
+4. Prettier Configuration (.prettierrc)
+{
+  "semi": true,
+  "singleQuote": true,
+  "trailingComma": "all",
+  "printWidth": 100
+}
+
+5. ESLint Ignore (.eslintignore)
+node_modules
+.next
+out
+dist
+build
+coverage
+public
+
+6. Prettier Ignore (.prettierignore)
+node_modules
+.next
+out
+dist
+build
+coverage
+public
+
+7. VS Code Workspace Settings (.vscode/settings.json)
+{
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.formatOnSave": true,
+  "prettier.requireConfig": true,
+  "prettier.configPath": ".prettierrc",
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  },
+  "eslint.validate": ["javascript", "typescript", "typescriptreact"],
+  "eslint.run": "onType",
+  "eslint.lintTask.enable": true
+}
+
+8. Add Lint and Format Scripts to package.json
+"scripts": {
+  "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
+  "format": "prettier --write ."
+}
+
+9. Husky + Lint-Staged (Optional, for pre-commit hooks)
+npx husky install
+npx husky add .husky/pre-commit "npx lint-staged"
+
+Add to package.json:
+"lint-staged": {
+  "*.{js,jsx,ts,tsx}": ["eslint --fix", "prettier --write"]
+}
+
+10. Extensions to Recommend (.vscode/extensions.json)
+{
+  "recommendations": [
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode"
+  ]
+}
+
+---
+
+With this setup, every new project will have:
+- Consistent linting and formatting
+- Fast linting (ignores build/public)
+- Pre-commit checks (optional)
+- Editor auto-fix on save
+- No surprises in the Problems panel
