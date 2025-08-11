@@ -4,6 +4,7 @@ interface SquareProps {
   squareName: string;
   color: "light" | "dark";
   piece?: string;
+  pieceStyle?: React.CSSProperties;
   onSquareMouseDown?: (squareName: string) => void;
   onPieceMouseDown?: (
     e: React.MouseEvent<HTMLImageElement>,
@@ -43,6 +44,7 @@ const Square: React.FC<SquareProps> = ({
   isDragging,
   isDragOver,
   isAnimating,
+  pieceStyle,
 }) => {
   const className = [
     color,
@@ -91,6 +93,7 @@ const Square: React.FC<SquareProps> = ({
           piece={piece}
           squareName={squareName}
           isAnimating={isAnimating}
+          style={pieceStyle}
           onMouseDown={onPieceMouseDown ? (e) => onPieceMouseDown(e, piece, squareName) : undefined}
           onDragEnd={onPieceDragEnd}
           onDragStart={onPieceDragStart ? (e) => onPieceDragStart(e, piece, squareName) : undefined}

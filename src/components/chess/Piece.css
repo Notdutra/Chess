@@ -2,16 +2,15 @@
 .piece {
   width: 90%;
   height: 90%;
-  max-width: 100%;
-  max-height: 100%;
   object-fit: contain;
   user-select: none;
   -webkit-user-select: none;
-  z-index: 2;
+  z-index: 2000; /* static piece above highlight */
+  position: relative; /* ensure z-index stacking context applies */
 }
 
 .piece.animating {
-  z-index: 2;
+  z-index: 3000; /* animating piece above static piece and highlights */
   will-change: transform;
   transition: transform 1s ease-out;
   animation-duration: 1s;
