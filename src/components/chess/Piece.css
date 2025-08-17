@@ -16,6 +16,26 @@
   animation-duration: 1s;
 }
 
+/* When a piece is animating, hide the original static piece immediately so
+   the cloned element can be shown moving without a duplicate. The clone
+   will have the class .animating-clone and should be displayed. */
+.piece.animating {
+  opacity: 0; /* hide original piece immediately when animating */
+}
+
+.animating-clone {
+  display: block !important;
+  opacity: 1 !important;
+  position: absolute !important;
+  left: 0 !important;
+  top: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
+  pointer-events: none !important;
+  z-index: 4000 !important;
+}
+
 .piece:active {
   cursor: grabbing !important;
 }

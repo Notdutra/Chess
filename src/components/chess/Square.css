@@ -52,6 +52,60 @@
 }
 
 /* Each square fills its grid cell and is always proportional */
+/* Strong visible highlight for drag-over (hover) state */
+.drag-over {
+  position: relative;
+  --light-square-highlight-color: rgb(245, 245, 140);
+  --dark-square-highlight-color: rgb(186, 201, 73);
+}
+
+.drag-over::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: var(--hover-border-width) solid rgba(255, 255, 255, 0.65);
+  box-sizing: border-box;
+  pointer-events: none;
+  z-index: 1;
+}
+.selected.light,
+.selected.dark {
+  position: relative;
+}
+
+.selected.light::after,
+.selected.dark::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 51, 0.5);
+  pointer-events: none;
+  z-index: 1;
+}
+
+*::before,
+*,
+*::after {
+  box-sizing: border-box;
+}
+
+:root {
+  --light-square-color: rgb(235, 236, 208);
+  --dark-square-color: rgb(115, 149, 82);
+
+  --dark-square-red-highlight-color: rgb(212, 110, 81);
+  --light-square-red-highlight-color: rgb(237, 126, 106);
+
+  --color-transparent-black-14: rgba(0, 0, 0, 0.14);
+}
+
+/* Each square fills its grid cell and is always proportional */
 .square {
   position: relative;
   width: 100%;
@@ -102,9 +156,10 @@
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(244, 42, 50, 0.5);
+  /* Keep the overlay visible but behind pieces so preview pieces remain fully opaque */
+  background: rgba(244, 42, 50, 0.22);
   pointer-events: none;
-  z-index: 4000; /* show premove overlay above pieces/highlights */
+  z-index: 0; /* place premove overlay behind piece images (piece z-index is 2000) */
 }
 
 .legal-move.light::before {

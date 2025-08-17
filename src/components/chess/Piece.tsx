@@ -40,9 +40,9 @@ const Piece: React.FC<PieceProps> = ({
   onMouseDown,
   style,
 }) => {
-  // No local drag state or effects needed
   const pieceImages = getPieceImages();
-  const pieceImage = piece ? pieceImages[piece.slice(0, 2)] : undefined;
+  const pieceKey = piece ? piece.slice(0, 2) : "";
+  const pieceImage = pieceKey ? pieceImages[pieceKey] : undefined;
 
   const className = [
     "piece",

@@ -1,4 +1,5 @@
 import { getBasePath } from "../utils/paths";
+import logger from "../utils/logger";
 
 const SOUND_NAMES = [
   "capture",
@@ -48,7 +49,7 @@ class SoundManager {
           const audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
           this.audioBuffers.set(name, audioBuffer);
         } catch (error) {
-          console.error(`Failed to load sound: ${name}`, error);
+          logger.error(`Failed to load sound: ${name}`, error);
         }
       })
     );
@@ -61,7 +62,7 @@ class SoundManager {
 
     const buffer = this.audioBuffers.get(name);
     if (!buffer) {
-      console.error(`Sound "${name}" not loaded.`);
+      logger.error(`Sound "${name}" not loaded.`);
       return;
     }
 
