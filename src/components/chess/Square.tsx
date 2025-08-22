@@ -11,6 +11,11 @@ interface SquareProps {
     piece: string,
     squareName: string
   ) => void;
+  onPieceTouchStart?: (
+    e: React.TouchEvent<HTMLImageElement>,
+    piece: string,
+    squareName: string
+  ) => void;
   onPieceDragStart?: (
     e: React.DragEvent<HTMLImageElement>,
     piece: string,
@@ -33,6 +38,7 @@ const Square: React.FC<SquareProps> = ({
   piece,
   onSquareMouseDown,
   onPieceMouseDown,
+  onPieceTouchStart,
   onPieceDragStart,
   onPieceDragEnd,
   isSelected,
@@ -95,6 +101,9 @@ const Square: React.FC<SquareProps> = ({
           isAnimating={isAnimating}
           style={pieceStyle}
           onMouseDown={onPieceMouseDown ? (e) => onPieceMouseDown(e, piece, squareName) : undefined}
+          onTouchStart={
+            onPieceTouchStart ? (e) => onPieceTouchStart(e, piece, squareName) : undefined
+          }
           onDragEnd={onPieceDragEnd}
           onDragStart={onPieceDragStart ? (e) => onPieceDragStart(e, piece, squareName) : undefined}
         />

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useRef, useEffect } from "react";
 import { getBasePath } from "../../utils/paths";
 
 const getPieceImages = (): Record<string, string> => {
@@ -26,6 +26,7 @@ interface PieceProps {
   isAnimating?: boolean;
   isSelected?: boolean;
   onMouseDown?: (e: React.MouseEvent<HTMLImageElement>, piece: string, squareName: string) => void;
+  onTouchStart?: (e: React.TouchEvent<HTMLImageElement>, piece: string, squareName: string) => void;
   onDragEnd?: React.DragEventHandler<HTMLImageElement>;
   onDragStart?: (e: React.DragEvent<HTMLImageElement>, piece: string, squareName: string) => void;
   style?: React.CSSProperties;
@@ -38,11 +39,13 @@ const Piece: React.FC<PieceProps> = ({
   isAnimating,
   isSelected,
   onMouseDown,
+  onTouchStart,
   style,
 }) => {
   const pieceImages = getPieceImages();
   const pieceKey = piece ? piece.slice(0, 2) : "";
   const pieceImage = pieceKey ? pieceImages[pieceKey] : undefined;
+  const imgRef = useRef<HTMLImageElement | null>(null);
 
   const className = [
     "piece",
@@ -54,6 +57,26 @@ const Piece: React.FC<PieceProps> = ({
     .join(" ");
 
   // No local drag handlers needed
+
+  const handleContextMenu = (e: React.MouseEvent<HTMLImageElement>) => {
+    e.preventDefault();
+  };
+
+  // Attach a non-passive touchstart listener directly to the image element so we can
+  // safely call preventDefault to avoid the long-press image menu on mobile.
+  useEffect(() => {
+    const el = imgRef.current;
+    if (!el) return;
+
+    const onTouchStart = (evt: TouchEvent) => {
+      try {
+        if (evt.cancelable) evt.preventDefault();
+      } catch {}
+    };
+
+    el.addEventListener("touchstart", onTouchStart, { passive: false });
+    return () => el.removeEventListener("touchstart", onTouchStart);
+  }, [imgRef]);
 
   return pieceImage ? (
     <img
@@ -68,11 +91,16 @@ const Piece: React.FC<PieceProps> = ({
         userSelect: "none",
         touchAction: "none",
         cursor: isDragging ? "grabbing" : "inherit",
-        ...style,
+        ...(style || {}),
       }}
+      ref={imgRef}
       onMouseDown={onMouseDown ? (e) => onMouseDown(e, piece, squareName || "") : undefined}
+      onTouchStart={onTouchStart ? (e) => onTouchStart(e, piece, squareName || "") : undefined}
+      onContextMenu={handleContextMenu}
     />
   ) : null;
 };
+
+// (listener is attached inside the component via useEffect)
 
 export default Piece;
