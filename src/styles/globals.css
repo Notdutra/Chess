@@ -1,3 +1,8 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* existing global body styles (moved here so Tailwind utilities are available) */
 body {
   background-color: rgb(48, 46, 43);
   margin: 0; /* remove default browser margin to avoid horizontal gaps */

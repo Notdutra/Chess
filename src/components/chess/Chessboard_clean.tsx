@@ -950,6 +950,18 @@ const Chessboard = () => {
     }
   };
 
+  // Handle piece pointer down (for compatibility with refactored Square)
+  const handlePointerDown = (
+    e: React.PointerEvent<HTMLImageElement>,
+    piece: string,
+    fromSquare: string
+  ) => {
+    // Optionally adapt to MouseEvent if needed
+    // If handleMouseDown is not needed elsewhere, you can inline the logic here
+    // For now, just call handleMouseDown with a cast
+    handleMouseDown(e as unknown as React.MouseEvent<HTMLImageElement>, piece, fromSquare);
+  };
+
   // Helper function to select a square and calculate valid moves
   const selectSquare = (squareName: string) => {
     const piece = ChessEngineInstance.getPieceAtPosition(squareName);
@@ -1347,7 +1359,7 @@ const Chessboard = () => {
             handleSquareMouseDown();
             handleSquareClick(sq);
           }}
-          onPieceMouseDown={handleMouseDown}
+          onPiecePointerDown={handlePointerDown}
           isSelected={isSelected}
           isHighlighted={isHighlighted}
           isLegalMove={isLegalMove}

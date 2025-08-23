@@ -1,3 +1,11 @@
+# Project documentation
+.github/instructions/
+node_modules/
+.next/
+dist/
+out/
+pnpm-lock.yaml
+*.log
 # Logs
 logs
 *.log

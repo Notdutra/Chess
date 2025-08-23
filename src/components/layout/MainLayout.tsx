@@ -5,16 +5,10 @@ type MainLayoutProps = {
   title?: string;
 };
 
-export default function MainLayout({ children, title = "Chess Game" }: MainLayoutProps) {
+export default function MainLayout({ children }: MainLayoutProps) {
   return (
     <div className="layout-container">
-      <header>
-        <h1>{title}</h1>
-      </header>
       <main>{children}</main>
-      <footer>
-        <p>© 2025 Chess Game</p>
-      </footer>
     </div>
   );
 }

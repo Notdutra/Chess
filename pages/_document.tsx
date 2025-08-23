@@ -6,6 +6,11 @@ class MyDocument extends Document {
       <Html lang="en">
         <Head>
           <meta charSet="UTF-8" />
+          {/* Prevent mobile pinch-zoom and scaling */}
+          <meta
+            name="viewport"
+            content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
+          />
           <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
         </Head>
         <body>

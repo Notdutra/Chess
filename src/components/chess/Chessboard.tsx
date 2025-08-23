@@ -166,6 +166,43 @@ const Chessboard = () => {
   // Debug helpers (none currently used)
 
   const draggingPieceRef = useRef<string | null>(null);
+  const activePointerIdRef = useRef<number | null>(null);
+  // Cleanup any active drag state (remove images, listeners, refs)
+  function cleanupActiveDrag() {
+    try {
+      setIsDragging(false);
+    } catch {
+      /* ignore */
+    }
+    try {
+      draggingPieceRef.current = null;
+      draggingFromSquareRef.current = null;
+      lastMouseDownSquare.current = null;
+      lastHoveredSquareRef.current = null;
+      lastMoveWasDragRef.current = false;
+      document.body.classList.remove("dragging");
+      document.body.style.removeProperty("cursor");
+      // remove any floating drag images we may have created
+      document
+        .querySelectorAll('.custom-drag-image, img[style*="position: fixed"]')
+        .forEach((el) => el.remove());
+      activePointerIdRef.current = null;
+      // remove dragging classes
+      document.querySelectorAll(".dragging").forEach((el) => el.classList.remove("dragging"));
+      // unregister global listeners (safe even if not attached)
+      try {
+        document.removeEventListener("mousemove", mouseMoveListener);
+        document.removeEventListener("mouseup", mouseUpListener);
+        document.removeEventListener("touchmove", mouseMoveListener);
+        document.removeEventListener("touchend", mouseUpListener);
+      } catch {
+        /* ignore */
+      }
+      setHoveredSquare(null);
+    } catch {
+      /* ignore */
+    }
+  }
   const makeBotMoveRef = useRef<((currentState?: GameState) => Promise<void>) | null>(null);
   const outgoingMovePendingRef = useRef<boolean>(false);
   const pendingAnimationTriggerRef = useRef<boolean>(false);
@@ -420,9 +457,6 @@ const Chessboard = () => {
             .enqueue(async () => {
               return result;
             }, lanKey)
-            .then((res) => {
-              console.log("Premove dispatched successfully:", res);
-            })
             .catch((err) => {
               console.error("Failed to dispatch premove:", err);
             });
@@ -956,11 +990,16 @@ const Chessboard = () => {
   };
 
   const mouseMoveListener = (evt: Event) => {
-    // Support both MouseEvent and TouchEvent
+    // Support both MouseEvent and TouchEvent, prefer the active touch identifier
     try {
       if ((evt as TouchEvent).touches && (evt as TouchEvent).touches.length > 0) {
-        const t = (evt as TouchEvent).touches[0];
-        handlePointerMove(t.clientX, t.clientY);
+        const touches = Array.from((evt as TouchEvent).touches) as Touch[];
+        let t: Touch | undefined;
+        if (activePointerIdRef.current != null) {
+          t = touches.find((x) => x.identifier === activePointerIdRef.current);
+        }
+        if (!t) t = touches[0];
+        if (t) handlePointerMove(t.clientX, t.clientY);
       } else {
         const me = evt as MouseEvent;
         handlePointerMove(me.clientX, me.clientY);
@@ -975,9 +1014,18 @@ const Chessboard = () => {
       let clientX: number | null = null;
       let clientY: number | null = null;
       if ((evt as TouchEvent).changedTouches && (evt as TouchEvent).changedTouches.length > 0) {
-        const t = (evt as TouchEvent).changedTouches[0];
-        clientX = t.clientX;
-        clientY = t.clientY;
+        const changed = Array.from((evt as TouchEvent).changedTouches) as Touch[];
+        let t: Touch | undefined;
+        if (activePointerIdRef.current != null) {
+          t = changed.find((x) => x.identifier === activePointerIdRef.current);
+        }
+        if (!t) t = changed[0];
+        if (t) {
+          clientX = t.clientX;
+          clientY = t.clientY;
+        }
+        // clear active touch on up
+        activePointerIdRef.current = null;
       } else {
         const me = evt as MouseEvent;
         clientX = me.clientX;
@@ -1241,30 +1289,22 @@ const Chessboard = () => {
     premoveSelectionRef.current = squareName;
   };
 
-  // Handle piece mouse down or touch start (unified)
+  // Handle piece pointer down using Pointer Events (unified for mouse/touch/stylus)
   const handlePiecePointerDown = (
-    e: React.MouseEvent<HTMLImageElement> | React.TouchEvent<HTMLImageElement>,
+    e: React.PointerEvent<HTMLImageElement>,
     piece: string,
     fromSquare: string
   ) => {
-    // Rely on element CSS (touch-action: none) to prevent native gestures.
-    // Avoid calling preventDefault/stopPropagation here to prevent errors
-    // when the browser registers touch listeners as passive.
+    // ensure no stale drag state exists from previous interactions
+    cleanupActiveDrag();
     if (!fromSquare) return;
 
     lastMoveWasDragRef.current = false;
 
-    const pieceElement = e.target as HTMLImageElement;
-    let clientX: number, clientY: number;
-    if ("touches" in e && e.touches.length > 0) {
-      clientX = e.touches[0].clientX;
-      clientY = e.touches[0].clientY;
-    } else if ("clientX" in e) {
-      clientX = e.clientX;
-      clientY = e.clientY;
-    } else {
-      return;
-    }
+    const pieceElement = e.currentTarget as HTMLImageElement;
+    const native = e.nativeEvent as PointerEvent;
+    const pointerId = native.pointerId;
+    activePointerIdRef.current = pointerId;
 
     // If a piece is already selected and this square is a legal move/capture, treat as click-to-move
     if (gameState.selectedSquare && gameState.validMoves.includes(fromSquare)) {
@@ -1295,40 +1335,37 @@ const Chessboard = () => {
       return;
     }
 
-    // Check if this piece exists in preview position due to a premove
+    // Check premove/preview rules
     const realPiece = ChessEngineInstance.getPieceAtPosition(fromSquare);
     const previewPiece = getPieceAtPositionPreview(fromSquare);
     const isPremoveDestination = premoveQueue.some((p) => p.to === fromSquare);
-
     const isChainablePremoveClick =
       isPremoveDestination &&
       gameState.currentPlayer !== playerRef.current &&
       previewPiece &&
       previewPiece[0] === (playerRef.current === "white" ? "W" : "B");
 
-    if (isPremoveDestination && !isChainablePremoveClick) {
-      return;
-    }
-
+    if (isPremoveDestination && !isChainablePremoveClick) return;
     if (
       previewPiece &&
       !realPiece &&
       gameState.currentPlayer !== playerRef.current &&
       !isChainablePremoveClick
-    ) {
+    )
       return;
-    }
 
     document.body.classList.add("dragging");
     document.body.style.cursor = "grabbing";
     setHoveredSquare(fromSquare);
 
-    // Create drag image
+    // Create drag image at the pointer location
     let dragImage: HTMLImageElement | null = null;
     let dragStarted = false;
     const rect = pieceElement.getBoundingClientRect();
+    const clientX = native.clientX;
+    const clientY = native.clientY;
     dragImage = pieceElement.cloneNode(true) as HTMLImageElement;
-    dragImage.removeAttribute("class");
+    dragImage.classList.add("custom-drag-image");
     dragImage.removeAttribute("style");
     dragImage.style.cssText = `
       position: fixed;
@@ -1343,12 +1380,11 @@ const Chessboard = () => {
     `;
 
     const squareEl = pieceElement.closest(".square");
-    if (squareEl && squareEl.id) {
-      setHoveredSquare(squareEl.id);
-    }
+    if (squareEl && squareEl.id) setHoveredSquare(squareEl.id);
     document.body.appendChild(dragImage);
     pieceElement.classList.add("dragging");
 
+    // small style force to avoid cursor glitches
     document.body.classList.remove("dragging");
     void document.body.offsetWidth;
     document.body.style.removeProperty("cursor");
@@ -1357,13 +1393,22 @@ const Chessboard = () => {
     const currentPieceColor = actualPiece ? (actualPiece[0] === "W" ? "white" : "black") : null;
 
     if (currentPieceColor === gameState.currentPlayer) {
-      if (gameState.selectedSquare !== fromSquare) {
-        selectSquare(fromSquare);
+      // Always ensure the piece is selected when dragging (keep legal moves visible)
+      if (gameState.selectedSquare !== fromSquare) selectSquare(fromSquare);
+      else {
+        // If already selected, make sure valid moves are still showing
+        if (!gameState.validMoves || gameState.validMoves.length === 0) {
+          selectSquare(fromSquare);
+        }
       }
     } else if (currentPieceColor && currentPieceColor !== gameState.currentPlayer) {
       if (currentPieceColor === playerRef.current) {
-        if (gameState.selectedSquare !== fromSquare) {
-          selectSquareWithAvailableMoves(fromSquare);
+        if (gameState.selectedSquare !== fromSquare) selectSquareWithAvailableMoves(fromSquare);
+        else {
+          // If already selected, make sure premove moves are still showing
+          if (!gameState.validMoves || gameState.validMoves.length === 0) {
+            selectSquareWithAvailableMoves(fromSquare);
+          }
         }
       }
     } else {
@@ -1381,7 +1426,6 @@ const Chessboard = () => {
     draggingPieceRef.current = piece;
     draggingFromSquareRef.current = fromSquare;
 
-    // Mouse drag events
     const startDrag = () => {
       if (dragStarted) return;
       dragStarted = true;
@@ -1391,62 +1435,48 @@ const Chessboard = () => {
       document.body.classList.add("dragging");
     };
 
-    const updateDragImagePosition = (evt: MouseEvent | TouchEvent | Event) => {
+    const updateDragImagePosition = (x: number, y: number) => {
       if (!dragStarted || !dragImage) return;
-      let x, y;
-      if (evt instanceof TouchEvent && evt.touches.length > 0) {
-        x = evt.touches[0].clientX;
-        y = evt.touches[0].clientY;
-      } else if ("clientX" in evt) {
-        x = (evt as MouseEvent).clientX;
-        y = (evt as MouseEvent).clientY;
-      } else {
-        return;
-      }
       dragImage.style.left = `${x - dragImage.offsetWidth / 2}px`;
       dragImage.style.top = `${y - dragImage.offsetHeight / 2}px`;
     };
 
-    // Mouse move
-    const dragImageMoveHandler = (evt: Event) => {
-      if (!dragStarted) {
-        startDrag();
-      }
-      updateDragImagePosition(evt);
+    // Pointer move/up handlers bound to this pointerId
+    const onPointerMove = (ev: PointerEvent) => {
+      if (ev.pointerId !== pointerId) return;
+      if (!dragStarted) startDrag();
+      updateDragImagePosition(ev.clientX, ev.clientY);
+      handlePointerMove(ev.clientX, ev.clientY);
     };
-    document.addEventListener("mousemove", dragImageMoveHandler);
-    // Touch move
-    const dragImageTouchMoveHandler = (evt: TouchEvent) => {
-      if (!dragStarted) {
-        startDrag();
-      }
-      updateDragImagePosition(evt);
-    };
-    document.addEventListener("touchmove", dragImageTouchMoveHandler);
 
-    // Mouse up
-    const dragImageUpHandler = () => {
-      setHoveredSquare(null);
+    const onPointerUp = (ev: PointerEvent) => {
+      if (ev.pointerId !== pointerId) return;
+      try {
+        // release pointer capture if supported
+        try {
+          (pieceElement as Element).releasePointerCapture?.(pointerId);
+        } catch {}
+      } finally {
+        document.removeEventListener("pointermove", onPointerMove);
+        document.removeEventListener("pointerup", onPointerUp);
+        activePointerIdRef.current = null;
+      }
+      // finalize drop
+      handlePointerUp(ev.clientX, ev.clientY);
+      // remove drag image
       if (dragImage) dragImage.remove();
       pieceElement.classList.remove("dragging");
-      document.removeEventListener("mousemove", dragImageMoveHandler);
-      document.removeEventListener("touchmove", dragImageTouchMoveHandler);
+      setIsDragging(false);
     };
-    document.addEventListener("mouseup", dragImageUpHandler, { once: true });
-    // Touch end
-    const dragImageTouchEndHandler = () => {
-      setHoveredSquare(null);
-      if (dragImage) dragImage.remove();
-      pieceElement.classList.remove("dragging");
-      document.removeEventListener("mousemove", dragImageMoveHandler);
-      document.removeEventListener("touchmove", dragImageTouchMoveHandler);
-    };
-    document.addEventListener("touchend", dragImageTouchEndHandler, { once: true });
 
-    document.addEventListener("mousemove", mouseMoveListener);
-    document.addEventListener("mouseup", mouseUpListener);
-    document.addEventListener("touchmove", mouseMoveListener);
-    document.addEventListener("touchend", mouseUpListener);
+    // Attach pointer capture and global pointer listeners
+    try {
+      (pieceElement as Element).setPointerCapture?.(pointerId);
+    } catch {
+      /* ignore */
+    }
+    document.addEventListener("pointermove", onPointerMove);
+    document.addEventListener("pointerup", onPointerUp, { once: false });
   };
 
   // Animation ref and effect for click-to-move animation
@@ -1654,13 +1684,20 @@ const Chessboard = () => {
           piece={piece || undefined}
           onSquareMouseDown={(sq: string) => {
             handleSquareMouseDown();
-            handleSquareClick(sq);
+            // Only handle square click if there's no piece (empty square)
+            if (!piece) {
+              handleSquareClick(sq);
+            }
           }}
-          onPieceMouseDown={(e: React.MouseEvent<HTMLImageElement>, p: string, sq: string) => {
+          onPiecePointerDown={(e: React.PointerEvent<HTMLImageElement>, p: string, sq: string) => {
+            // Prevent event bubbling to avoid square click
+            e.stopPropagation();
+            // Handle piece selection AND drag start
             handlePiecePointerDown(e, p, sq);
-          }}
-          onPieceTouchStart={(e: React.TouchEvent<HTMLImageElement>, p: string, sq: string) => {
-            handlePiecePointerDown(e, p, sq);
+            // Also handle piece selection via click logic
+            if (!isDragging) {
+              handleSquareClick(sq);
+            }
           }}
           isSelected={isSelected}
           isHighlighted={isHighlighted}

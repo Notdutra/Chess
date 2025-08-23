@@ -26,7 +26,11 @@ interface PieceProps {
   isAnimating?: boolean;
   isSelected?: boolean;
   onMouseDown?: (e: React.MouseEvent<HTMLImageElement>, piece: string, squareName: string) => void;
-  onTouchStart?: (e: React.TouchEvent<HTMLImageElement>, piece: string, squareName: string) => void;
+  onPointerDown?: (
+    e: React.PointerEvent<HTMLImageElement>,
+    piece: string,
+    squareName: string
+  ) => void;
   onDragEnd?: React.DragEventHandler<HTMLImageElement>;
   onDragStart?: (e: React.DragEvent<HTMLImageElement>, piece: string, squareName: string) => void;
   style?: React.CSSProperties;
@@ -38,8 +42,7 @@ const Piece: React.FC<PieceProps> = ({
   isDragging,
   isAnimating,
   isSelected,
-  onMouseDown,
-  onTouchStart,
+  onPointerDown,
   style,
 }) => {
   const pieceImages = getPieceImages();
@@ -94,8 +97,7 @@ const Piece: React.FC<PieceProps> = ({
         ...(style || {}),
       }}
       ref={imgRef}
-      onMouseDown={onMouseDown ? (e) => onMouseDown(e, piece, squareName || "") : undefined}
-      onTouchStart={onTouchStart ? (e) => onTouchStart(e, piece, squareName || "") : undefined}
+      onPointerDown={onPointerDown ? (e) => onPointerDown(e, piece, squareName || "") : undefined}
       onContextMenu={handleContextMenu}
     />
   ) : null;
