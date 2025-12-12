@@ -1,5 +1,5 @@
-import Chessboard from "../../components/chess/Chessboard";
 import React from "react";
+import { ChessBoard } from "../../components/chess/ChessBoard";
 
 const App: React.FC = () => {
   return (
@@ -8,7 +8,7 @@ const App: React.FC = () => {
         {/* Flexible top spacer for future layout control (adjust h-12 as needed) */}
         <div className="w-full" style={{ height: "3rem" }}></div>
         <div className="app-container">
-          <Chessboard />
+          <ChessBoard />
         </div>
       </div>
     </>

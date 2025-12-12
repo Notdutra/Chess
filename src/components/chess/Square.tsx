@@ -10,18 +10,13 @@ interface SquareProps {
     e: React.PointerEvent<HTMLImageElement>,
     piece: string,
     squareName: string
-  ) => void;
-  onPieceDragStart?: (
-    e: React.DragEvent<HTMLImageElement>,
-    piece: string,
-    squareName: string
-  ) => void;
-  onPieceDragEnd?: (e: React.DragEvent<HTMLImageElement>) => void;
+  ) => boolean | void;
   isSelected?: boolean;
   isHighlighted?: boolean;
   isLegalMove?: boolean;
   isCaptureHint?: boolean;
   isPremove?: boolean;
+  isKingInCheck?: boolean;
   squareSize: number;
   isDragging?: boolean;
   isDragOver?: boolean;
@@ -32,13 +27,12 @@ const Square: React.FC<SquareProps> = ({
   color,
   piece,
   onSquareMouseDown,
-  onPieceDragStart,
-  onPieceDragEnd,
   isSelected,
   isHighlighted,
   isLegalMove,
   isCaptureHint,
   isPremove,
+  isKingInCheck,
   squareSize,
   isDragging,
   isDragOver,
@@ -55,6 +49,7 @@ const Square: React.FC<SquareProps> = ({
     isSelected ? "selected" : "",
     isDragOver ? "drag-over" : "",
     isPremove ? "premove" : "",
+    isKingInCheck ? "king-in-check" : "",
   ]
     .filter(Boolean)
     .join(" ");
@@ -97,8 +92,6 @@ const Square: React.FC<SquareProps> = ({
           onPointerDown={
             onPiecePointerDown ? (e) => onPiecePointerDown(e, piece, squareName) : undefined
           }
-          onDragEnd={onPieceDragEnd}
-          onDragStart={onPieceDragStart ? (e) => onPieceDragStart(e, piece, squareName) : undefined}
         />
       )}
     </div>

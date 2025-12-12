@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from "react";
+import React, { useRef } from "react";
 import { getBasePath } from "../../utils/paths";
 
 const getPieceImages = (): Record<string, string> => {
@@ -25,14 +25,11 @@ interface PieceProps {
   isDragging?: boolean;
   isAnimating?: boolean;
   isSelected?: boolean;
-  onMouseDown?: (e: React.MouseEvent<HTMLImageElement>, piece: string, squareName: string) => void;
   onPointerDown?: (
     e: React.PointerEvent<HTMLImageElement>,
     piece: string,
     squareName: string
   ) => void;
-  onDragEnd?: React.DragEventHandler<HTMLImageElement>;
-  onDragStart?: (e: React.DragEvent<HTMLImageElement>, piece: string, squareName: string) => void;
   style?: React.CSSProperties;
 }
 
@@ -65,21 +62,15 @@ const Piece: React.FC<PieceProps> = ({
     e.preventDefault();
   };
 
-  // Attach a non-passive touchstart listener directly to the image element so we can
-  // safely call preventDefault to avoid the long-press image menu on mobile.
-  useEffect(() => {
-    const el = imgRef.current;
-    if (!el) return;
-
-    const onTouchStart = (evt: TouchEvent) => {
-      try {
-        if (evt.cancelable) evt.preventDefault();
-      } catch {}
-    };
-
-    el.addEventListener("touchstart", onTouchStart, { passive: false });
-    return () => el.removeEventListener("touchstart", onTouchStart);
-  }, [imgRef]);
+  const handlePointerDownWrapper = (e: React.PointerEvent<HTMLImageElement>) => {
+    if (onPointerDown && squareName) {
+      const handled = onPointerDown(e, piece, squareName);
+      if (handled === undefined || handled === true) {
+        // Prevent default only when the handler handled the event (typically own pieces)
+        e.preventDefault();
+      }
+    }
+  };
 
   return pieceImage ? (
     <img
@@ -97,7 +88,7 @@ const Piece: React.FC<PieceProps> = ({
         ...(style || {}),
       }}
       ref={imgRef}
-      onPointerDown={onPointerDown ? (e) => onPointerDown(e, piece, squareName || "") : undefined}
+      onPointerDown={handlePointerDownWrapper}
       onContextMenu={handleContextMenu}
     />
   ) : null;

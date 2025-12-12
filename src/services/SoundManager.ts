@@ -21,11 +21,14 @@ class SoundManager {
   globalVolume: number;
 
   constructor() {
-    this.audioContext = new (window.AudioContext ||
-      (window as typeof window & { webkitAudioContext?: typeof AudioContext })
-        .webkitAudioContext)();
-    if (!this.audioContext) {
-      throw new Error("Web Audio API is not supported in this browser.");
+    try {
+      this.audioContext = new (window.AudioContext ||
+        (window as typeof window & { webkitAudioContext?: typeof AudioContext })
+          .webkitAudioContext)();
+    } catch {
+      logger.warn("Web Audio API is not supported in this browser. Sound will be disabled.");
+      // Create a dummy context that does nothing
+      this.audioContext = null as unknown as AudioContext;
     }
     this.audioBuffers = new Map();
     this.preloaded = false;
@@ -33,8 +36,10 @@ class SoundManager {
   }
 
   async _ensureAudioContextReady(): Promise<void> {
-    if (this.audioContext.state === "suspended") {
-      await this.audioContext.resume();
+    if (!this.audioContext || this.audioContext.state === "suspended") {
+      if (this.audioContext) {
+        await this.audioContext.resume();
+      }
     }
   }
 
@@ -57,6 +62,7 @@ class SoundManager {
   }
 
   async play(name: string, volume: number = 1): Promise<void> {
+    if (!this.audioContext) return;
     await this._ensureAudioContextReady();
     if (!this.preloaded) await this.preloadAllSounds();
 
